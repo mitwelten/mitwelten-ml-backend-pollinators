@@ -18,7 +18,6 @@ from multiprocessing.pool import ThreadPool as Pool
 
 
 # Load configurations
-
 def get_client():
     with open('bucket_config.yaml', 'rb') as yaml_file:
         config = yaml.load(yaml_file)
