@@ -11,32 +11,25 @@ import sys
 import yaml
 import time
 
-from flask import Flask
-from flask import request, jsonify
-
 from minio import Minio
 
 from multiprocessing.pool import ThreadPool as Pool
 
 
 
-
-
-app = Flask(__name__)
-
 # Load configurations
-with open('bucket_config.yaml', 'rb') as yaml_file:
-    config = yaml.load(yaml_file)
 
-client = Minio(
-    config['HOST'], 
-    access_key=config['ACCESS_KEY'],
-    secret_key=config['SECRET_KEY']
-)
+def get_client():
+    with open('bucket_config.yaml', 'rb') as yaml_file:
+        config = yaml.load(yaml_file)
 
+    client = Minio(
+        config['HOST'], 
+        access_key=config['ACCESS_KEY'],
+        secret_key=config['SECRET_KEY']
+    )
 
-# Load configurations from environment
-#os.environ[]
+    return client
 
 
 def extract_sub_prefix(client: object, bucket_name: str, max_depth: int = 2, current_objects: dict = {}, recursive_depth: int = 0) -> dict:
@@ -177,73 +170,3 @@ def download_files(client: object, bucket_name: str, filenames: list, n_threads:
     end = time.perf_counter() - start
 
     print(f'Extracted {len(filenames)} files in {end} seconds')
-
-
-def get_bucket_data(client: object, bucket: str, prefix: str = None) -> object:
-    """
-
-    Parameters
-    ----------
-    bucket : object
-        _description_
-
-    Returns
-    -------
-    object
-        _description_
-    """
-    pass
-
-def get_bulk_data():
-    pass
-
-def save_checkpoint(data: object) -> object:
-    """
-    Adds extracted bucket data to a text file.
-
-    Parameters
-    ----------
-    data : object
-        _description_
-
-    Returns
-    -------
-    object
-        _description_
-    """
-    pass
-
-
-
-@app.route('/download_data_s3', methods=['GET'])
-def download_data_s3():
-    """_summary_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    pass
-
-@app.route('/upload_data_s3/<bucket_name>/<filename>', methods=['PUT'])
-def upload_data_s3(bucket_name, filename):
-    """_summary_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    if request.method == 'PUT':
-        pass
-    else:
-        raise Exception(f'Wrong method {request.method}') 
-
-
-
-
-if __name__ == '__main__':
-
-    
-    app.run(debug=False, port=8000, host='0.0.0.0')
