@@ -99,9 +99,9 @@ def model_predict(data: pd.DataFrame, cfg: dict):
             BASE_DIR = output_config_file.get("base_dir", "output")
             SAVE_CROPS = output_config_file.get("save_crops", True)
 
+    # create dataframe to save predictions
     predictions = pd.DataFrame(
-        columns=['index', 'flower_index', 'class_name',
-                'score', 'width', 'height', 'crop']
+        columns=['object_name', 'class_name', 'box', 'score']
     )
 
     # is there a way to process this in batches??
@@ -122,6 +122,9 @@ def model_predict(data: pd.DataFrame, cfg: dict):
         flower_classes = flower_model.get_classes()
         flower_scores = flower_model.get_scores()
         flower_names = flower_model.get_names()
+
+        flower_predictions = {filename: []}
+
         for flower_index in tqdm(range(len(flower_crops))):
             # add flower to message
             # TODO: add flower to message
@@ -136,33 +139,26 @@ def model_predict(data: pd.DataFrame, cfg: dict):
                 width=width,
                 height=height,
             )
-            # predict pollinator
             pollinator_model.predict(flower_crops[flower_index])
-            pollinator_boxes = pollinator_model.get_boxes()
-            pollinator_crops = pollinator_model.get_crops()
-            pollinator_classes = pollinator_model.get_classes()
-            pollinator_scores = pollinator_model.get_scores()
-            pollinator_names = pollinator_model.get_names()
-            pollinator_indexes = pollinator_model.get_indexes()
-            for detected_pollinator in range(len(pollinator_crops)):
-                idx = pollinator_index + pollinator_indexes[detected_pollinator]
-                crop_image = Image.fromarray(pollinator_crops[detected_pollinator])
-                width_polli, height_polli = crop_image.size
+            # predict pollinator
+            if len(pollinator_model.get_boxes()) > 0:    
+                pollinator_data = {
+                    'pollinator_boxes' : pollinator_model.get_boxes(),
+                    'pollinator_classes' : pollinator_model.get_classes(),
+                    'pollinator_scores' : pollinator_model.get_scores(),
+                    'pollinator_names' : pollinator_model.get_names()
+                }
+                print(pollinator_data)
                 
-                # add pollinator to message
-                pollinator_obj = Pollinator(
-                    index=idx,
-                    flower_index=flower_index,
-                    class_name=pollinator_names[detected_pollinator],
-                    score=pollinator_scores[detected_pollinator],
-                    width=width_polli,
-                    height=height_polli,
-                    crop=crop_image,
-                )
 
+                flower_predictions[filename].append(pollinator_data)
             
-            if len(pollinator_indexes) > 0:
-                pollinator_index += max(pollinator_indexes) + 1
+        print(flower_predictions)
+        #tmp = pd.DataFrame.from_records(pollinator_data)
+        #predictions = pd.concat([predictions, tmp], axis=0)
+            
+
+    return predictions
 
 if __name__ == '__main__':
 

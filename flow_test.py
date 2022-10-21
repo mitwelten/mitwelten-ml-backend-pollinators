@@ -17,7 +17,7 @@ from src.etl import dummy_transform, model_predict
 # Temp configs
 IS_TEST = True
 TEST_DATA = 'synthetic_table.csv'
-BATCHSIZE = 16
+BATCHSIZE = 8
 
 
 @flow(name='test-flow')
