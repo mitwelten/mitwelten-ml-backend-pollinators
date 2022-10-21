@@ -2,6 +2,9 @@ import yaml
 import os
 import time
 
+import pandas as pd
+import numpy as np
+
 from minio import Minio
 from prefect import task
 
@@ -10,9 +13,16 @@ from multiprocessing.pool import ThreadPool as Pool
 
 
 @task
-def get_checkpoint():
-    # loads proceeded files or directories from checkpoint in SQL
-    pass
+def get_checkpoint(is_test: bool = False, path: str = None):
+    if is_test:
+        df = pd.read_csv(path)
+        return df
+    else:
+        raise NotImplementedError('Not yet implemented with DB connection.')
+
+@task
+def load_image_batch(data: pd.DataFrame, size: int = 32):
+    return data[data['processed'] == False].iloc[:size]
 
 
 def extract_sub_prefix(

@@ -3,6 +3,8 @@ import shutil
 import time
 import yaml
 
+import pandas as pd
+
 from prefect import task
 
 import sys
@@ -20,9 +22,7 @@ from tqdm import tqdm
 def dummy_transform(remove_dir):
     shutil.rmtree(path=remove_dir, ignore_errors=True)
 
-
-#@task
-def model_predict(input_filepaths, cfg):
+def init_models(cfg: dict):
     # Flower Model configuration
     model_flower_config = cfg.get("models").get("flower")
     MODEL_FLOWER_WEIGHTS = model_flower_config.get("weights_path")
@@ -53,32 +53,6 @@ def model_predict(input_filepaths, cfg):
     MODEL_POLLINATOR_MULTI_LABEL_IOU_THRESHOLD = model_pollinator_config.get(
         "multi_label_iou_threshold"
     )
-
-
-    # Input Configuration
-    dir_input = None
-
-    # Directory Input Configuration
-    INPUT_DIRECTORY_BASE_DIR = cfg.get('input').get('directory').get('base_dir')
-    INPUT_DIRECTORY_EXTENSION = '.jpg'
-    dir_input = DirectoryInput(INPUT_DIRECTORY_BASE_DIR, INPUT_DIRECTORY_EXTENSION)
-    dir_input.scan()
-
-    # Output Configuration
-    output_config = cfg.get("output")
-    IGNORE_EMPTY_RESULTS = output_config.get("ignore_empty_results", False)
-    # Output Configuration (File)
-    STORE_FILE = False
-    BASE_DIR = "output"
-    SAVE_CROPS = True
-    if output_config.get("file") is not None:
-        output_config_file = output_config.get("file")
-        if output_config_file.get("store_file", False):
-            STORE_FILE = True
-            BASE_DIR = output_config_file.get("base_dir", "output")
-            SAVE_CROPS = output_config_file.get("save_crops", True)
-
-
     # Init Flower Model
     flower_model = YoloModel(
         MODEL_FLOWER_WEIGHTS,
@@ -106,6 +80,36 @@ def model_predict(input_filepaths, cfg):
         augment=MODEL_POLLINATOR_AUGMENT,
         max_det=MODEL_POLLINATOR_MAX_DETECTIONS,
     )
+
+    return flower_model, pollinator_model
+
+
+@task
+def model_predict(data: pd.DataFrame, cfg: dict):
+    # Input Configuration
+    dir_input = None
+
+    # Directory Input Configuration
+    INPUT_DIRECTORY_BASE_DIR = cfg.get('input').get('directory').get('base_dir')
+    INPUT_DIRECTORY_EXTENSION = '.jpg'
+    dir_input = DirectoryInput(INPUT_DIRECTORY_BASE_DIR, INPUT_DIRECTORY_EXTENSION)
+    dir_input.scan()
+
+    # Output Configuration
+    output_config = cfg.get("output")
+    IGNORE_EMPTY_RESULTS = output_config.get("ignore_empty_results", False)
+    # Output Configuration (File)
+    STORE_FILE = True
+    BASE_DIR = output_config.get('base_dir')
+    SAVE_CROPS = True
+    if output_config.get("file") is not None:
+        output_config_file = output_config.get("file")
+        if output_config_file.get("store_file", False):
+            STORE_FILE = True
+            BASE_DIR = output_config_file.get("base_dir", "output")
+            SAVE_CROPS = output_config_file.get("save_crops", True)
+
+
     loop_through = True
     while loop_through:
         filename = dir_input.get_next()
@@ -172,6 +176,4 @@ if __name__ == '__main__':
     with open('./Pollinatordetection/config.yaml', 'rb') as yaml_file:
         model_config = yaml.load(yaml_file, Loader=yaml.FullLoader)
 
-    
     model_predict(input_filepaths=os.listdir('0344-6782'), cfg=model_config)
-
