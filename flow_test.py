@@ -17,7 +17,7 @@ from src.etl import dummy_transform, model_predict
 # Temp configs
 IS_TEST = True
 TEST_DATA = 'synthetic_table.csv'
-BATCHSIZE = 64
+BATCHSIZE = 16
 
 
 @flow(name='test-flow')
@@ -57,11 +57,11 @@ def etl_flow():
     # --------------------------------
     # Transform
     # --------------------------------
-    with open('./src/etl/Pollinatordetection/config.yaml', 'rb') as yaml_file:
+    with open('model_config.yaml', 'rb') as yaml_file:
         model_config = yaml.load(yaml_file, Loader=yaml.FullLoader)
 
     model_predict(
-        input_filepaths=df_batch['object_name'].to_list(),
+        data=df_ckp,
         cfg=model_config
     )
     # --------------------------------

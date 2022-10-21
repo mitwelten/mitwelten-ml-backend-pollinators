@@ -11,9 +11,9 @@ import sys
 sys.path.append('./Pollinatordetection')
 
 from PIL import Image
-from yolomodelhelper import YoloModel
-from messagehelper import Flower, Pollinator
-from inputs import DirectoryInput
+from .Pollinatordetection.yolomodelhelper import YoloModel
+from .Pollinatordetection.messagehelper import Flower, Pollinator
+from .Pollinatordetection.inputs import DirectoryInput
 from tqdm import tqdm
 
 
@@ -85,21 +85,11 @@ def init_models(cfg: dict):
 
 
 @task
-def model_predict(data: pd.DataFrame, cfg: dict):
-    # Input Configuration
-    dir_input = None
-
-    # Directory Input Configuration
-    INPUT_DIRECTORY_BASE_DIR = cfg.get('input').get('directory').get('base_dir')
-    INPUT_DIRECTORY_EXTENSION = '.jpg'
-    dir_input = DirectoryInput(INPUT_DIRECTORY_BASE_DIR, INPUT_DIRECTORY_EXTENSION)
-    dir_input.scan()
-
+def model_predict(data: pd.DataFrame, cfg: dict): 
+    flower_model, pollinator_model = init_models(cfg=cfg) 
     # Output Configuration
     output_config = cfg.get("output")
-    IGNORE_EMPTY_RESULTS = output_config.get("ignore_empty_results", False)
     # Output Configuration (File)
-    STORE_FILE = True
     BASE_DIR = output_config.get('base_dir')
     SAVE_CROPS = True
     if output_config.get("file") is not None:
@@ -109,67 +99,70 @@ def model_predict(data: pd.DataFrame, cfg: dict):
             BASE_DIR = output_config_file.get("base_dir", "output")
             SAVE_CROPS = output_config_file.get("save_crops", True)
 
+    predictions = pd.DataFrame(
+        columns=['index', 'flower_index', 'class_name',
+                'score', 'width', 'height', 'crop']
+    )
 
-    loop_through = True
-    while loop_through:
-        filename = dir_input.get_next()
-        if filename is not None:
-            flower_model.reset_inference_times()
-            pollinator_model.reset_inference_times()
-            pollinator_index = 0
-            # predict flower
-            try:
-                img = Image.open(filename)
-                original_width, original_height = img.size
-                flower_model.predict(img)
-            except Exception as e:
-                continue
-            flower_crops = flower_model.get_crops()
-            flower_boxes = flower_model.get_boxes()
-            flower_classes = flower_model.get_classes()
-            flower_scores = flower_model.get_scores()
-            flower_names = flower_model.get_names()
-            for flower_index in tqdm(range(len(flower_crops))):
-                # add flower to message
-                # TODO: add flower to message
-                width, height = (
-                    flower_crops[flower_index].shape[1],
-                    flower_crops[flower_index].shape[0],
+    # is there a way to process this in batches??
+    for idx in data.index:
+        filename = data.loc[idx, 'object_name']
+        flower_model.reset_inference_times()
+        pollinator_model.reset_inference_times()
+        pollinator_index = 0
+        # predict flower
+        try:
+            img = Image.open(filename)
+            original_width, original_height = img.size
+            flower_model.predict(img)
+        except Exception as e:
+            continue
+        flower_crops = flower_model.get_crops()
+        flower_boxes = flower_model.get_boxes()
+        flower_classes = flower_model.get_classes()
+        flower_scores = flower_model.get_scores()
+        flower_names = flower_model.get_names()
+        for flower_index in tqdm(range(len(flower_crops))):
+            # add flower to message
+            # TODO: add flower to message
+            width, height = (
+                flower_crops[flower_index].shape[1],
+                flower_crops[flower_index].shape[0],
+            )
+            flower_obj = Flower(
+                index=flower_index,
+                class_name=flower_names[flower_index],
+                score=flower_scores[flower_index],
+                width=width,
+                height=height,
+            )
+            # predict pollinator
+            pollinator_model.predict(flower_crops[flower_index])
+            pollinator_boxes = pollinator_model.get_boxes()
+            pollinator_crops = pollinator_model.get_crops()
+            pollinator_classes = pollinator_model.get_classes()
+            pollinator_scores = pollinator_model.get_scores()
+            pollinator_names = pollinator_model.get_names()
+            pollinator_indexes = pollinator_model.get_indexes()
+            for detected_pollinator in range(len(pollinator_crops)):
+                idx = pollinator_index + pollinator_indexes[detected_pollinator]
+                crop_image = Image.fromarray(pollinator_crops[detected_pollinator])
+                width_polli, height_polli = crop_image.size
+                
+                # add pollinator to message
+                pollinator_obj = Pollinator(
+                    index=idx,
+                    flower_index=flower_index,
+                    class_name=pollinator_names[detected_pollinator],
+                    score=pollinator_scores[detected_pollinator],
+                    width=width_polli,
+                    height=height_polli,
+                    crop=crop_image,
                 )
-                flower_obj = Flower(
-                    index=flower_index,
-                    class_name=flower_names[flower_index],
-                    score=flower_scores[flower_index],
-                    width=width,
-                    height=height,
-                )
-                # predict pollinator
-                pollinator_model.predict(flower_crops[flower_index])
-                pollinator_boxes = pollinator_model.get_boxes()
-                pollinator_crops = pollinator_model.get_crops()
-                pollinator_classes = pollinator_model.get_classes()
-                pollinator_scores = pollinator_model.get_scores()
-                pollinator_names = pollinator_model.get_names()
-                pollinator_indexes = pollinator_model.get_indexes()
-                for detected_pollinator in range(len(pollinator_crops)):
-                    idx = pollinator_index + pollinator_indexes[detected_pollinator]
-                    crop_image = Image.fromarray(pollinator_crops[detected_pollinator])
-                    width_polli, height_polli = crop_image.size
-                    # add pollinator to message
-                    pollinator_obj = Pollinator(
-                        index=idx,
-                        flower_index=flower_index,
-                        class_name=pollinator_names[detected_pollinator],
-                        score=pollinator_scores[detected_pollinator],
-                        width=width_polli,
-                        height=height_polli,
-                        crop=crop_image,
-                    )
-                if len(pollinator_indexes) > 0:
-                    pollinator_index += max(pollinator_indexes) + 1
 
-        else:
-            time.sleep(5)
+            
+            if len(pollinator_indexes) > 0:
+                pollinator_index += max(pollinator_indexes) + 1
 
 if __name__ == '__main__':
 
