@@ -1,5 +1,6 @@
 import os
 import yaml
+import json
 
 from minio import Minio
 from prefect import flow, task
@@ -17,7 +18,7 @@ from src.etl import dummy_transform, model_predict
 # Temp configs
 IS_TEST = True
 TEST_DATA = 'synthetic_table.csv'
-BATCHSIZE = 8
+BATCHSIZE = 16
 
 
 @flow(name='test-flow')
@@ -60,10 +61,13 @@ def etl_flow():
     with open('model_config.yaml', 'rb') as yaml_file:
         model_config = yaml.load(yaml_file, Loader=yaml.FullLoader)
 
-    model_predict(
+    predictions = model_predict(
         data=df_ckp,
         cfg=model_config
     )
+    # write results to json
+    with open('results.json', 'w') as json_file:
+        json.dump(predictions, json_file)
     # --------------------------------
     # Clean up
     # --------------------------------
