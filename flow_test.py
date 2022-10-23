@@ -68,11 +68,6 @@ def etl_flow():
     # write results to json
     with open('results.json', 'w') as json_file:
         json.dump(predictions, json_file)
-    # --------------------------------
-    # Clean up
-    # --------------------------------
-
-
     
     # --------------------------------
     # Load
@@ -84,6 +79,13 @@ def etl_flow():
     # --------------------------------
 
 
+    # --------------------------------
+    # Clean up
+    # --------------------------------
 
+
+
+
+    
 if __name__ == '__main__':
     etl_flow()

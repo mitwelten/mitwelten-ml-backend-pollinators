@@ -103,7 +103,7 @@ def model_predict(data: pd.DataFrame, cfg: dict):
     predictions = pd.DataFrame(
         columns=['object_name', 'class_name', 'box', 'score']
     )
-
+    all_predictions = []
     # is there a way to process this in batches??
     for idx in data.index:
         filename = data.loc[idx, 'object_name']
@@ -154,11 +154,12 @@ def model_predict(data: pd.DataFrame, cfg: dict):
                 flower_predictions[filename].append(pollinator_data)
             
         print(flower_predictions)
-        #tmp = pd.DataFrame.from_records(pollinator_data)
+        all_predictions.append(flower_predictions)
+        #tmp = pd.DataFrame.from_records(flower_predictions)
         #predictions = pd.concat([predictions, tmp], axis=0)
             
 
-    return predictions
+    return all_predictions
 
 if __name__ == '__main__':
 
