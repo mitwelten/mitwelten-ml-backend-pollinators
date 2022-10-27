@@ -22,7 +22,7 @@ def get_checkpoint(is_test: bool = False, path: str = None):
 
 @task
 def load_image_batch(data: pd.DataFrame, size: int = 32):
-    return data[data['processed'] == False].iloc[:size]
+    return data[data['processed'] == 0].iloc[:size]
 
 
 def extract_sub_prefix(

@@ -3,7 +3,9 @@ import yaml
 import json
 
 from minio import Minio
-from prefect import flow
+from prefect import flow, get_run_logger
+from prefect.filesystems import LocalFileSystem
+
 
 from src.etl import (
     extract_sub_prefix, 
@@ -16,14 +18,23 @@ from src.etl import dummy_transform, model_predict
 from src.etl import update_processed_data
 
 
-# Temp configs
+"""# Temp configs
 IS_TEST = True
 TEST_DATA = 'synthetic_table.csv'
-BATCHSIZE = 16
+BATCHSIZE = 16"""
 
 
 @flow(name='test-flow')
-def etl_flow():
+def etl_flow(
+    BATCHSIZE,
+    TEST_DATA, 
+    IS_TEST
+):
+    print(TEST_DATA)
+    logger = get_run_logger()
+    local_file_system_block = LocalFileSystem.load("lfs")
+
+    
     # get checkpoint from SQL before loading next
     # Load Configurations
     with open('bucket_config.yaml', 'rb') as yaml_file:
@@ -80,11 +91,8 @@ def etl_flow():
     # --------------------------------
     df_ckp = update_processed_data(
         df=df_ckp, 
-        processed_ids=df_batch['object_name'].to_list()
-    )
-    df_ckp.to_csv(
-        path_or_buf=TEST_DATA, 
-        index=False
+        processed_ids=df_batch['object_name'].to_list(),
+        path=TEST_DATA
     )
 
     # Updates SQL DB

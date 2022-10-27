@@ -2,6 +2,7 @@
 This python file includes all task regarding to loading the data from the predictions
 to the database and updating all relevant columns with processed information
 """
+from prefect import task
 from concurrent.futures import process
 import pandas as pd
 from sqlalchemy import create_engine
@@ -25,7 +26,7 @@ def alter_table_processed(data: pd.DataFrame):
     pass
 
 
-
-def update_processed_data(df: pd.DataFrame, processed_ids: list) -> pd.DataFrame:
+@task
+def update_processed_data(df: pd.DataFrame, processed_ids: list, path: str) -> pd.DataFrame:
     df.loc[df['object_name'].isin(processed_ids), 'processed'] = 1
-    return df
+    df.to_csv(path_or_buf=path, index=False)

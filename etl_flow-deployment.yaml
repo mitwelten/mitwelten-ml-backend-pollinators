@@ -1,0 +1,40 @@
+###
+### A complete description of a Prefect Deployment for flow 'test-flow'
+###
+name: test-deployment
+description: null
+version: 90a78a77791431de3a364d92a233d42f
+# The work queue that will handle this deployment's runs
+work_queue_name: work-queue-test
+tags: []
+parameters: {
+  TEST_DATA: "synthetic_table.csv",
+  IS_TEST: True,
+  BATCHSIZE: 16
+}
+schedule: null
+infra_overrides: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command: null
+  stream_output: true
+  block_type_slug: process
+  _block_type_slug: process
+
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: test-flow
+manifest_path: null
+storage: null
+path: /home/simon/work/repo/pollinator-ml-backend
+entrypoint: flow_test.py:etl_flow
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties: {}
+  required: null
+  definitions: null
