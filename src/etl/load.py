@@ -30,3 +30,5 @@ def alter_table_processed(data: pd.DataFrame):
 def update_processed_data(df: pd.DataFrame, processed_ids: list, path: str) -> pd.DataFrame:
     df.loc[df['object_name'].isin(processed_ids), 'processed'] = 1
     df.to_csv(path_or_buf=path, index=False)
+
+    return df

@@ -5,6 +5,7 @@ import json
 from minio import Minio
 from prefect import flow
 from prefect.filesystems import LocalFileSystem
+from prefect.results import PersistedResult
 
 from src.etl import (
     extract_sub_prefix, 
@@ -24,15 +25,10 @@ BATCHSIZE = 16"""
 
 
 @flow(name='test-flow')
-def etl_flow(
-    BATCHSIZE,
-    TEST_DATA, 
-    IS_TEST
-):
+def etl_flow(BATCHSIZE, TEST_DATA, IS_TEST):
 
     local_file_system_block = LocalFileSystem.load("lfs")
 
-    
     # get checkpoint from SQL before loading next
     # Load Configurations
     with open('bucket_config.yaml', 'rb') as yaml_file:
@@ -78,8 +74,9 @@ def etl_flow(
     # write results to json
     with open('results.json', 'w') as json_file:
         json.dump(predictions, json_file)
-        print('------------- Predictions-File was saved', os.path.isfile('results.json'))
-    
+        #print('------------- Predictions-File was saved', os.path.isfile('results.json'))
+        #print('Predictions\n', predictions)
+
     # --------------------------------
     # Load
     # --------------------------------
@@ -103,8 +100,8 @@ def etl_flow(
     # Remove local files like images from s3, temporary files and so on
 
 
-
-
     
 if __name__ == '__main__':
     etl_flow()
+    #df_ckp = etl_flow()
+    #df_ckp.to_csv('synthetic_data.csv')
