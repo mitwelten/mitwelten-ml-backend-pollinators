@@ -1,16 +1,16 @@
 ###
 ### A complete description of a Prefect Deployment for flow 'test-flow'
 ###
-name: test-deployment
+name: test
 description: null
-version: 90a78a77791431de3a364d92a233d42f
+version: 5429c2185414e0b5175d575cf7ee6ebd
 # The work queue that will handle this deployment's runs
-work_queue_name: work-queue-test
+work_queue_name: default
 tags: []
 parameters: {
-  TEST_DATA: "synthetic_table.csv",
-  IS_TEST: True,
-  BATCHSIZE: 16
+  "BATCHSIZE": 16,
+  "TEST_DATA": "synthetic_table.csv", 
+  "IS_TEST": true
 }
 schedule: null
 infra_overrides: {}
@@ -35,6 +35,15 @@ entrypoint: flow_test.py:etl_flow
 parameter_openapi_schema:
   title: Parameters
   type: object
-  properties: {}
-  required: null
+  properties:
+    BATCHSIZE:
+      title: BATCHSIZE
+    TEST_DATA:
+      title: TEST_DATA
+    IS_TEST:
+      title: IS_TEST
+  required:
+  - BATCHSIZE
+  - TEST_DATA
+  - IS_TEST
   definitions: null

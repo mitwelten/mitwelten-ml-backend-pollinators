@@ -3,9 +3,8 @@ import yaml
 import json
 
 from minio import Minio
-from prefect import flow, get_run_logger
+from prefect import flow
 from prefect.filesystems import LocalFileSystem
-
 
 from src.etl import (
     extract_sub_prefix, 
@@ -80,6 +79,7 @@ def etl_flow(
     # write results to json
     with open('results.json', 'w') as json_file:
         json.dump(predictions, json_file)
+        print('------------- Predictions-File was saved', os.path.isfile('results.json'))
     
     # --------------------------------
     # Load
