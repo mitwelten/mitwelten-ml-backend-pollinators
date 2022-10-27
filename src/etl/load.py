@@ -27,4 +27,5 @@ def alter_table_processed(data: pd.DataFrame):
 
 
 def update_processed_data(df: pd.DataFrame, processed_ids: list) -> pd.DataFrame:
-    return df.loc[df['object_name'].isin(processed_ids), 'processed'] = 1
+    df.loc[df['object_name'].isin(processed_ids), 'processed'] = 1
+    return df
