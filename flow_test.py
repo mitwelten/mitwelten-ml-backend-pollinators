@@ -29,8 +29,7 @@ def etl_flow(
     TEST_DATA, 
     IS_TEST
 ):
-    print(TEST_DATA)
-    logger = get_run_logger()
+
     local_file_system_block = LocalFileSystem.load("lfs")
 
     
