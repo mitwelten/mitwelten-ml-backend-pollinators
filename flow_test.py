@@ -3,7 +3,7 @@ import yaml
 import json
 
 from minio import Minio
-from prefect import flow, task
+from prefect import flow
 
 from src.etl import (
     extract_sub_prefix, 
@@ -13,6 +13,7 @@ from src.etl import (
     load_image_batch
 )
 from src.etl import dummy_transform, model_predict
+from src.etl import update_processed_data
 
 
 # Temp configs
@@ -77,11 +78,22 @@ def etl_flow():
     # --------------------------------
     # Update
     # --------------------------------
+    df_ckp = update_processed_data(
+        df=df_ckp, 
+        processed_ids=df_batch['object_name'].to_list()
+    )
+    df_ckp.to_csv(
+        path_or_buf=TEST_DATA, 
+        index=False
+    )
 
+    # Updates SQL DB
 
     # --------------------------------
     # Clean up
     # --------------------------------
+
+    # Remove local files like images from s3, temporary files and so on
 
 
 
