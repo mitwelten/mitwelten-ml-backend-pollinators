@@ -1,19 +1,18 @@
 import os
 import shutil
-import time
 import yaml
 
 import pandas as pd
 
 from prefect import task
 
-import sys
-sys.path.append('./Pollinatordetection')
-
 from PIL import Image
-from .Pollinatordetection.yolomodelhelper import YoloModel
-from .Pollinatordetection.messagehelper import Flower, Pollinator
-from .Pollinatordetection.inputs import DirectoryInput
+
+if __name__ =='__main__':
+    from Pollinatordetection import YoloModel
+else:    
+    from .Pollinatordetection import YoloModel
+    
 from tqdm import tqdm
 
 
@@ -86,84 +85,85 @@ def init_models(cfg: dict):
 
 @task
 def model_predict(data: pd.DataFrame, cfg: dict): 
+
     flower_model, pollinator_model = init_models(cfg=cfg) 
-    # Output Configuration
-    output_config = cfg.get("output")
-    # Output Configuration (File)
-    BASE_DIR = output_config.get('base_dir')
-    SAVE_CROPS = True
-    if output_config.get("file") is not None:
-        output_config_file = output_config.get("file")
-        if output_config_file.get("store_file", False):
-            STORE_FILE = True
-            BASE_DIR = output_config_file.get("base_dir", "output")
-            SAVE_CROPS = output_config_file.get("save_crops", True)
 
-    # create dataframe to save predictions
-    predictions = pd.DataFrame(
-        columns=['object_name', 'class_name', 'box', 'score']
-    )
-    all_predictions = []
-    # is there a way to process this in batches??
-    for idx in data.index:
-        filename = data.loc[idx, 'object_name']
-        flower_model.reset_inference_times()
-        pollinator_model.reset_inference_times()
-        pollinator_index = 0
-        # predict flower
-        try:
-            img = Image.open(filename)
-            original_width, original_height = img.size
-            flower_model.predict(img)
-        except Exception as e:
-            continue
-        flower_crops = flower_model.get_crops()
-        flower_boxes = flower_model.get_boxes()
-        flower_classes = flower_model.get_classes()
-        flower_scores = flower_model.get_scores()
-        flower_names = flower_model.get_names()
+    # Initiate Dataframes
+    flower_predictions, pollinator_predictions = [], []
 
-        flower_predictions = {filename: []}
+    with tqdm(total=len(data)) as pbar:
 
-        for flower_index in tqdm(range(len(flower_crops))):
-            # add flower to message
-            # TODO: add flower to message
-            width, height = (
-                flower_crops[flower_index].shape[1],
-                flower_crops[flower_index].shape[0],
-            )
-            flower_obj = Flower(
-                index=flower_index,
-                class_name=flower_names[flower_index],
-                score=flower_scores[flower_index],
-                width=width,
-                height=height,
-            )
-            pollinator_model.predict(flower_crops[flower_index])
-            # predict pollinator
-            if len(pollinator_model.get_boxes()) > 0:    
-                pollinator_data = {
-                    'pollinator_boxes' : pollinator_model.get_boxes(),
-                    'pollinator_classes' : pollinator_model.get_classes(),
-                    'pollinator_scores' : pollinator_model.get_scores(),
-                    'pollinator_names' : pollinator_model.get_names()
-                }
-                print(pollinator_data)
-                
+        for idx in data.index:
+            filename = data.loc[idx, 'object_name']
+            pbar.set_description(f'Processing File {filename}')
 
-                flower_predictions[filename].append(pollinator_data)
+            flower_model.reset_inference_times()
+            pollinator_model.reset_inference_times()
+            # predict flower
+            try:
+                img = Image.open(filename)
+                original_width, original_height = img.size
+                flower_model.predict(img)
+            except Exception as e:
+                print(Exception(f'Could not infer {filename}'))
+                continue
             
-        print(flower_predictions)
-        all_predictions.append(flower_predictions)
-        #tmp = pd.DataFrame.from_records(flower_predictions)
-        #predictions = pd.concat([predictions, tmp], axis=0)
-            
+            flower_crops = flower_model.get_crops()
+            flower_boxes = flower_model.get_boxes()
+            flower_classes = flower_model.get_classes()
+            flower_scores = flower_model.get_scores()
+            flower_names = flower_model.get_names()
 
-    return all_predictions
+            for flower_index in range(len(flower_crops)):
+                width, height = (
+                    flower_crops[flower_index].shape[1],
+                    flower_crops[flower_index].shape[0],
+                )
+
+                # write flower predictions dataframe
+                flower_predictions.append(
+                    {
+                        'object_name': filename,
+                        'flower_obj_id': flower_index, 
+                        'flower_box': flower_boxes[flower_index], 
+                        'flower_class': flower_classes[flower_index], 
+                        'flower_score': flower_scores[flower_index], 
+                        'flower_name': flower_names[flower_index],
+                        'width': width,
+                        'height': height
+                    }
+                )
+                # predict pollinator
+                pollinator_model.predict(flower_crops[flower_index])
+
+                if len(pollinator_model.get_boxes()) > 0: 
+                    for i in range(len(pollinator_model.get_boxes())):
+                        pollinator_predictions.append(
+                            {
+                                'object_name': filename,
+                                'flower_id': flower_index,
+                                'pollinator_boxes' : pollinator_model.get_boxes()[i],
+                                'pollinator_classes' : pollinator_model.get_classes()[i],
+                                'pollinator_scores' : pollinator_model.get_scores()[i],
+                                'pollinator_names' : pollinator_model.get_names()[i],
+                            }
+                        )
+                        
+            pbar.update(1)
+
+    return flower_predictions, pollinator_predictions            
+
 
 if __name__ == '__main__':
-
-    with open('./Pollinatordetection/config.yaml', 'rb') as yaml_file:
+    
+    with open('model_config.yaml', 'rb') as yaml_file:
         model_config = yaml.load(yaml_file, Loader=yaml.FullLoader)
 
-    model_predict(input_filepaths=os.listdir('0344-6782'), cfg=model_config)
+    df = pd.read_csv('synthetic_table.csv')
+    available_files = os.listdir('/home/simon/work/repo/pollinator-ml-backend/0344-6782/2021-06-21/08')
+    available_files = [os.path.join('0344-6782/2021-06-21/08', f) for f in available_files]
+    res = df.loc[df['object_name'].isin(available_files)]
+
+    flower, pollinators = model_predict(data=res.iloc[:20],  cfg=model_config)
+    print(10*'--')
+    print(pollinators)
