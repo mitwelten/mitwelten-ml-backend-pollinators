@@ -10,17 +10,18 @@ import os
 import sys
 import yaml
 import time
+import yaml
 
 from minio import Minio
 
-from multiprocessing.pool import ThreadPool as Pool
+from multiprocessing.pool import ThreadPool
 
 
 
 # Load configurations
-def get_client():
-    with open('bucket_config.yaml', 'rb') as yaml_file:
-        config = yaml.load(yaml_file)
+def get_client(config_path: str = 'bucket_config.yaml'):
+    with open(config_path, 'rb') as yaml_file:
+        config = yaml.load(yaml_file, yaml.FullLoader)
 
     client = Minio(
         config['HOST'], 
@@ -164,8 +165,53 @@ def download_files(client: object, bucket_name: str, filenames: list, n_threads:
 
     start = time.perf_counter()
     # Use multiprocessing (or multithreading?)
-    with Pool(processes=n_threads) as pool:
+    with ThreadPool(processes=n_threads) as pool:
         pool.starmap(_download_file_mp, list(zip(filenames)))    
     end = time.perf_counter() - start
 
     print(f'Extracted {len(filenames)} files in {end} seconds')
+
+def upload_files(client: object, bucket_name: str, filenames: list, relative_path: str = None, n_threads: int = 8):
+    """
+    Uploads data to S3 with minio client.
+
+    Parameters
+    ----------
+    client : object
+        Initiated minio client for s3 storage
+
+    bucket_name : str
+        name of the bucket
+
+    filenames : list
+        filenames to extract from bucket
+
+    n_threads : int, optional
+        number of threads to use for download, by default 8
+    """
+    # Create equal data structure in local repo
+    local_paths = [os.path.join(relative_path, obj) for obj in filenames]
+
+    # Download an object
+    def _upload_file_mp(data: str):
+        """data = (local filename, object_name)"""
+        print(f'Loading {data[0]} to {data[1]}')
+        try:
+            client.fput_object(
+                bucket_name=bucket_name, 
+                object_name=data[1], 
+                file_path=data[0]
+            )
+        except Exception as e:
+            print(e, f'Not worked for {data[0]}')
+
+    # build iterable
+    iterable = list(zip(local_paths, filenames))
+
+    start = time.perf_counter()
+    # Use multiprocessing (or multithreading?)
+    with ThreadPool(processes=n_threads) as pool:
+        pool.map(_upload_file_mp, iterable)    
+    end = time.perf_counter() - start
+
+    print(f'Uploaded {len(filenames)} files in {end} seconds')
