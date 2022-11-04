@@ -88,7 +88,7 @@ def model_predict(data: pd.DataFrame, cfg: dict):
 
     flower_model, pollinator_model = init_models(cfg=cfg) 
 
-    # Initiate Dataframes
+    # Initiate
     flower_predictions, pollinator_predictions = [], []
 
     with tqdm(total=len(data)) as pbar:
