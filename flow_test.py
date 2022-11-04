@@ -25,39 +25,34 @@ def etl_flow(BATCHSIZE=16, TEST_DATA='synthetic_table.csv', IS_TEST=True):
         bucket_config = yaml.load(yaml_file, yaml.FullLoader)
 
     # Init clients
-    cursor = get_db_client(config_path='test_config.yaml')
+    conn = get_db_client(config_path='test_config.yaml')
     minio_client = get_minio_client(config_path='test_config.yaml')
 
+    # Load configs
     with open('test_config.yaml') as yaml_file:
         config = yaml.load(yaml_file, yaml.FullLoader)
 
-    with open('model_config.yaml', 'r') as json_file:
+    with open('model_config.json', 'r') as json_file:
         model_config = json.load(json_file)
+
     # --------------------------------
     # Extract
     # --------------------------------
-    df_ckp = get_checkpoint(
-        is_test=IS_TEST, 
-        path=TEST_DATA
-    )
-    print(f'Processing {df_ckp.shape[0]} datapoints.')
+    df_ckp = get_checkpoint(conn=conn, request_batch_size=BATCHSIZE)
 
-    df_batch = load_image_batch(
-        data=df_ckp,
-        size=BATCHSIZE
-    )
+    print(f'Processing {df_ckp.shape[0]} datapoints.')
 
     download_files(
         client=minio_client,
         bucket_name=config['MINIO_BUCKET_NAME'],
-        filenames=df_batch['object_name'].to_list(),
+        filenames=df_ckp['object_name'].to_list(),
         n_threads=8,
     )
     # --------------------------------
     # Transform
     # --------------------------------
     flower_predictions, pollinator_predictions = model_predict(
-        data=df_batch,
+        data=df_ckp,
         cfg=model_config
     )
     # write results to json
@@ -76,7 +71,7 @@ def etl_flow(BATCHSIZE=16, TEST_DATA='synthetic_table.csv', IS_TEST=True):
     # --------------------------------
     df_ckp = update_processed_data(
         df=df_ckp, 
-        processed_ids=df_batch['object_name'].to_list(),
+        processed_ids=df_ckp['object_name'].to_list(),
         path=TEST_DATA
     )
 
