@@ -19,7 +19,7 @@ def get_checkpoint(conn: object, request_batch_size: int) -> pd.DataFrame:
         with conn.cursor() as cursor:        
             cursor.execute(
             f"""
-            SELECT files_image.object_name, image_results.result_id 
+            SELECT files_image.file_id, files_image.object_name, image_results.result_id 
             FROM files_image 
             LEFT JOIN image_results 
             ON files_image.file_id = image_results.file_id
