@@ -3,8 +3,6 @@ import yaml
 import psycopg2
 from minio import Minio
 
-from prefect import task
-
 
 def get_db_client(config_path: str) -> object:
     """

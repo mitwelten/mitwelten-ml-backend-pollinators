@@ -10,6 +10,7 @@ import psycopg2
 from prefect import task
 
 from multiprocessing.pool import ThreadPool as Pool
+from .clients import get_db_client
 
 
 

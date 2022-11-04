@@ -3,11 +3,8 @@ This python file includes all task regarding to loading the data from the predic
 to the database and updating all relevant columns with processed information
 """
 import json
-
 import pandas as pd
-
 import psycopg2
-
 from prefect import task
 
 
