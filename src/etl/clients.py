@@ -6,7 +6,6 @@ from minio import Minio
 from prefect import task
 
 
-@task
 def get_db_client(config_path: str) -> object:
     """
     Initiates DB client.
@@ -45,7 +44,6 @@ def get_db_client(config_path: str) -> object:
 
     return conn
 
-@task
 def get_minio_client(config_path: str) -> object:
     """
     Initiates Minio S3 Buckt client.
