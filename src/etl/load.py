@@ -4,9 +4,33 @@ to the database and updating all relevant columns with processed information
 """
 import json
 import pandas as pd
+import numpy
+from tqdm import tqdm
+
 import psycopg2
+from psycopg2.extensions import register_adapter, AsIs
+
 from prefect import task
 
+
+# Register Adapter function for data ingstinos
+# https://stackoverflow.com/questions/50626058/psycopg2-cant-adapt-type-numpy-int64
+def addapt_numpy_float64(numpy_float64):
+    return AsIs(numpy_float64)
+
+def addapt_numpy_int64(numpy_int64):
+    return AsIs(numpy_int64)
+
+def addapt_numpy_int32(numpy_int32):
+    return AsIs(numpy_int32)
+
+def addapt_numpy_float32(numpy_float32):
+    return AsIs(numpy_float32)
+
+register_adapter(numpy.float64, addapt_numpy_float64)
+register_adapter(numpy.int64, addapt_numpy_int64)
+register_adapter(numpy.int32, addapt_numpy_int32)
+register_adapter(numpy.float32, addapt_numpy_float32)
 
 
 def is_model_config_up(conn: object, model_config: dict) -> bool:
@@ -113,8 +137,70 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
     finally:
         conn.commit()
 
+@task
+def db_get_image_results(conn: object) -> pd.DataFrame:
+    """Returns table of current image results
 
+    Parameters
+    ----------
+    conn : object
+        psycopg db connector object.
 
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with all image_results
+    """    
+    try:    
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT files_image.object_name, image_results.result_id 
+                FROM image_results
+                LEFT JOIN files_image 
+                ON files_image.file_id = image_results.file_id   
+                """,
+            )
+            data = cursor.fetchall()
+    except Exception:
+        raise Exception('Could not query data.')
+    finally:
+        conn.commit()
+
+    colnames = [desc[0] for desc in cursor.description]
+    return pd.DataFrame.from_records(data=data, columns=colnames)
+
+@task
+def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
+    """Inserts flower predictions to flower table.
+
+    Parameters
+    ----------
+    conn : object
+        psycopg2 db connection object
+
+    data : pd.DataFrame
+        Pre-processed data ready for insertion.
+    """  
+    records = data[[
+        'result_id', 'flower_name', 'flower_score',
+        'x0', 'y0', 'x1', 'y1']].to_records(index=False)
+
+    try:    
+        with conn.cursor() as cursor:
+            for record in tqdm(records):  
+                cursor.execute(
+                    """
+                    INSERT INTO flowers (result_id, class, confidence, x0, y0, x1, y1)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    record
+                )
+    except Exception:
+        raise Exception('Could not insert.')
+    finally:
+        conn.commit()
+        
 
 @task
 def update_processed_data(df: pd.DataFrame, processed_ids: list, path: str) -> pd.DataFrame:
