@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 
 from minio import Minio
+import psycopg2
 from prefect import task
 
 from multiprocessing.pool import ThreadPool as Pool
@@ -13,74 +14,31 @@ from multiprocessing.pool import ThreadPool as Pool
 
 
 @task
-def get_checkpoint(is_test: bool = False, path: str = None):
-    if is_test:
-        df = pd.read_csv(path)
-        return df
-    else:
-        raise NotImplementedError('Not yet implemented with DB connection.')
+def get_checkpoint(cursor: object, request_batch_size: int) -> pd.DataFrame:
+    try:    
+        cursor.execute(
+        f"""
+        SELECT files_image.object_name, image_results.result_id 
+        FROM files_image 
+        LEFT JOIN image_results 
+        ON files_image.file_id = image_results.file_id
+        WHERE image_results.result_id IS NULL
+        LIMIT {request_batch_size}
+        """
+        )
+        data = cursor.fetchall()
+        colnames = [desc[0] for desc in cursor.description]
+    except Exception:
+        raise Exception('Could not retrieve data from DB.')
+
+    return pd.DataFrame.from_records(
+        data=data, 
+        columns=colnames
+    )  
 
 @task
 def load_image_batch(data: pd.DataFrame, size: int = 32):
     return data[data['processed'] == 0].iloc[:size]
-
-
-def extract_sub_prefix(
-    client: object, bucket_name: str, max_depth: int = 2, current_objects: dict = {}, recursive_depth: int = 0) -> dict:
-    """
-    Extract subfolders for one s3 bucket.
-
-    Parameters
-    ----------
-    client : object
-        minio client
-
-    bucket_name : str
-        name of the bucket
-
-    max_depth : int, optional
-        maximum folder depth to extract paths, by default 2
-
-    current_objects : dict, optional
-        param used for recursive, by default {}
-
-    recursive_depth : int, optional
-        current depth for recursive func call, by default 0
-
-    Returns
-    -------
-    dictionary with folder paths.
-    >>> {0: ['0344-6782/', '0863-3235/', '0863-3255/ ...], 1: [ ...]} 
-    """
-    if recursive_depth == 0:
-        # extract root objects
-        all_objects = [
-            obj.object_name for obj in list(client.list_objects(bucket_name=bucket_name))
-        ]
-        current_objects[recursive_depth] = all_objects
-        # recursive func call
-        extract_sub_prefix(
-            client=client,
-            bucket_name=bucket_name,
-            current_objects=current_objects,
-            max_depth=max_depth,
-            recursive_depth=recursive_depth+1
-        )
-    else:
-        if recursive_depth < max_depth:    
-            new_objects = []
-            for object_ in current_objects[recursive_depth-1]:
-                for element in client.list_objects(bucket_name=bucket_name, prefix=object_):
-                    new_objects.append(element.object_name)
-            current_objects[recursive_depth] = new_objects
-            extract_sub_prefix(
-                client=client,
-                bucket_name=bucket_name,
-                current_objects=current_objects,
-                max_depth=max_depth,
-                recursive_depth=recursive_depth + 1
-            )
-    return current_objects
 
 
 @task

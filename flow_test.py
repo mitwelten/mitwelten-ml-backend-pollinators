@@ -4,82 +4,71 @@ import json
 
 from minio import Minio
 from prefect import flow
-from prefect.filesystems import LocalFileSystem
-from prefect.results import PersistedResult
 
-from src.etl import (
-    extract_sub_prefix, 
-    get_object_paths, 
+from src.etl.extract import (
     download_files, 
     get_checkpoint,
     load_image_batch
 )
-from src.etl import dummy_transform, model_predict
-from src.etl import update_processed_data
+from src.etl.transform import model_predict
+from src.etl.load import update_processed_data
+from src.etl.clients import get_db_client, get_minio_client
 
-
-"""# Temp configs
-IS_TEST = True
-TEST_DATA = 'synthetic_table.csv'
-BATCHSIZE = 16"""
 
 
 @flow(name='test-flow')
-def etl_flow(BATCHSIZE, TEST_DATA, IS_TEST):
-
-    local_file_system_block = LocalFileSystem.load("lfs")
+def etl_flow(BATCHSIZE=16, TEST_DATA='synthetic_table.csv', IS_TEST=True):
 
     # get checkpoint from SQL before loading next
     # Load Configurations
     with open('bucket_config.yaml', 'rb') as yaml_file:
         bucket_config = yaml.load(yaml_file, yaml.FullLoader)
 
+    # Init clients
+    cursor = get_db_client(config_path='test_config.yaml')
+    minio_client = get_minio_client(config_path='test_config.yaml')
+
+    with open('test_config.yaml') as yaml_file:
+        config = yaml.load(yaml_file, yaml.FullLoader)
+
+    with open('model_config.yaml', 'r') as json_file:
+        model_config = json.load(json_file)
+    # --------------------------------
+    # Extract
+    # --------------------------------
     df_ckp = get_checkpoint(
         is_test=IS_TEST, 
         path=TEST_DATA
     )
+    print(f'Processing {df_ckp.shape[0]} datapoints.')
 
-    # --------------------------------
-    # Extract
-    # --------------------------------
     df_batch = load_image_batch(
         data=df_ckp,
         size=BATCHSIZE
     )
 
-    # initiate s3 client
-    client = Minio(
-        bucket_config['HOST'], 
-        access_key=bucket_config['ACCESS_KEY'],
-        secret_key=bucket_config['SECRET_KEY']
-    )
-
     download_files(
-        client=client,
-        bucket_name=bucket_config['BUCKET_NAME'],
+        client=minio_client,
+        bucket_name=config['MINIO_BUCKET_NAME'],
         filenames=df_batch['object_name'].to_list(),
         n_threads=8,
     )
-    
     # --------------------------------
     # Transform
     # --------------------------------
-    with open('model_config.yaml', 'rb') as yaml_file:
-        model_config = yaml.load(yaml_file, Loader=yaml.FullLoader)
-
-    predictions = model_predict(
-        data=df_ckp,
+    flower_predictions, pollinator_predictions = model_predict(
+        data=df_batch,
         cfg=model_config
     )
     # write results to json
-    with open('results.json', 'w') as json_file:
-        json.dump(predictions, json_file)
-        #print('------------- Predictions-File was saved', os.path.isfile('results.json'))
-        #print('Predictions\n', predictions)
-
+    with open('flower_predictions.json', 'w') as json_file:
+        json.dump(flower_predictions, json_file)
+    with open('pollinator_predictions.json', 'w') as json_file:
+        json.dump(pollinator_predictions, json_file)
     # --------------------------------
     # Load
     # --------------------------------
+    
 
 
     # --------------------------------
@@ -91,17 +80,8 @@ def etl_flow(BATCHSIZE, TEST_DATA, IS_TEST):
         path=TEST_DATA
     )
 
-    # Updates SQL DB
-
-    # --------------------------------
-    # Clean up
-    # --------------------------------
-
-    # Remove local files like images from s3, temporary files and so on
 
 
     
 if __name__ == '__main__':
     etl_flow()
-    #df_ckp = etl_flow()
-    #df_ckp.to_csv('synthetic_data.csv')

@@ -3,19 +3,16 @@ import shutil
 import yaml
 
 import pandas as pd
+from PIL import Image
+from tqdm import tqdm
 
 from prefect import task
-
-from PIL import Image
 
 if __name__ =='__main__':
     from Pollinatordetection import YoloModel
 else:    
     from .Pollinatordetection import YoloModel
     
-from tqdm import tqdm
-
-
 
 @task
 def dummy_transform(remove_dir):
@@ -23,7 +20,7 @@ def dummy_transform(remove_dir):
 
 def init_models(cfg: dict):
     # Flower Model configuration
-    model_flower_config = cfg.get("models").get("flower")
+    model_flower_config = cfg.get("flower")
     MODEL_FLOWER_WEIGHTS = model_flower_config.get("weights_path")
     MODEL_FLOWER_CLASS_NAMES = model_flower_config.get("class_names")
     MODEL_FLOWER_CONFIDENCE_THRESHOLD = model_flower_config.get("confidence_threshold")
@@ -37,7 +34,7 @@ def init_models(cfg: dict):
     MODEL_FLOWER_AUGMENT = model_flower_config.get("augment", False)
     MODEL_FLOWER_IMG_SIZE = model_flower_config.get("image_size")
 
-    model_pollinator_config = cfg.get("models").get("pollinator")
+    model_pollinator_config = cfg.get("pollinator")
     MODEL_POLLINATOR_WEIGHTS = model_pollinator_config.get("weights_path")
     MODEL_POLLINATOR_CLASS_NAMES = model_pollinator_config.get("class_names")
     MODEL_POLLINATOR_IMG_SIZE = model_pollinator_config.get("image_size")
