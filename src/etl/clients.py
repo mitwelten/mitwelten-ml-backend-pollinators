@@ -23,6 +23,7 @@ def get_db_client(config_path: str) -> object:
     """ 
     with open(config_path, 'rb') as yaml_file:
         config = yaml.load(yaml_file, yaml.FullLoader)
+
     conn = psycopg2.connect(
         host=config['DB_HOST'],
         port=config['DB_PORT'],
@@ -30,16 +31,19 @@ def get_db_client(config_path: str) -> object:
         user=config['POSTGRES_USER'],
         password=config['POSTGRES_PASSWORD']
     )
-    cursor = conn.cursor()  
-    # Perform simple query to check connection  
-    cursor.execute(
-        """SELECT * FROM files_image LIMIT 1"""
-    )
-    data = cursor.fetchall()
-    if len(data) < 1:
-        raise ConnectionError('Could not connect to DB')
+    with conn.cursor() as cursor:    
+        # Perform simple query to check connection
+        try:
+            cursor.execute(
+                """SELECT * FROM files_image LIMIT 1"""
+            )
+        except ConnectionError:
+            raise ConnectionError('Could not connect to DB')
+        data = cursor.fetchall()
+        if len(data) < 1:
+            raise Exception(f'Bad return Value: {data}')
 
-    return cursor
+    return conn
 
 @task
 def get_minio_client(config_path: str) -> object:

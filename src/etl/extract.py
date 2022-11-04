@@ -14,20 +14,21 @@ from multiprocessing.pool import ThreadPool as Pool
 
 
 @task
-def get_checkpoint(cursor: object, request_batch_size: int) -> pd.DataFrame:
-    try:    
-        cursor.execute(
-        f"""
-        SELECT files_image.object_name, image_results.result_id 
-        FROM files_image 
-        LEFT JOIN image_results 
-        ON files_image.file_id = image_results.file_id
-        WHERE image_results.result_id IS NULL
-        LIMIT {request_batch_size}
-        """
-        )
-        data = cursor.fetchall()
-        colnames = [desc[0] for desc in cursor.description]
+def get_checkpoint(conn: object, request_batch_size: int) -> pd.DataFrame:
+    try:
+        with conn.cursor() as cursor:        
+            cursor.execute(
+            f"""
+            SELECT files_image.object_name, image_results.result_id 
+            FROM files_image 
+            LEFT JOIN image_results 
+            ON files_image.file_id = image_results.file_id
+            WHERE image_results.result_id IS NULL
+            LIMIT {request_batch_size}
+            """
+            )
+            data = cursor.fetchall()
+            colnames = [desc[0] for desc in cursor.description]
     except Exception:
         raise Exception('Could not retrieve data from DB.')
 
