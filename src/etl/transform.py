@@ -150,6 +150,43 @@ def model_predict(data: pd.DataFrame, cfg: dict):
 
     return flower_predictions, pollinator_predictions            
 
+def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFrame) -> pd.DataFrame:
+    """
+    Post-processing of flower predictions outputet as json. 
+
+    Parameters
+    ----------
+    flower_predictions : dict (json)
+        Predictions from Yolo for a certain flower.
+
+    result_ids : pd.DataFrame
+        Queried data with existing result_ids
+
+    Returns
+    -------
+    pd.DataFrame
+        processed dataframe ready for db insertion
+    """
+    # Preprocess results from model_predict
+    flower_predictions = pd.DataFrame.from_records(flower_predictions)
+    
+    # Join with DB data
+    flower_predictions = pd.merge(
+        left=result_ids, 
+        right=flower_predictions, 
+        left_on='object_name', 
+        right_on='object_name', 
+        how='right'
+    )
+    # extract bbox data
+    flower_predictions['x0'] = flower_predictions['flower_box'].apply(lambda x: x[0]).astype(int)
+    flower_predictions['y0'] = flower_predictions['flower_box'].apply(lambda x: x[1]).astype(int)
+    flower_predictions['x1'] = flower_predictions['flower_box'].apply(lambda x: x[2]).astype(int)
+    flower_predictions['y1'] = flower_predictions['flower_box'].apply(lambda x: x[3]).astype(int)
+    flower_predictions = flower_predictions.drop('flower_box', axis=1)
+
+    return flower_predictions
+
 
 if __name__ == '__main__':
     
