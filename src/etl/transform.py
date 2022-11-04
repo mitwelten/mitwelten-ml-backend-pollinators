@@ -150,6 +150,7 @@ def model_predict(data: pd.DataFrame, cfg: dict):
 
     return flower_predictions, pollinator_predictions            
 
+@task
 def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFrame) -> pd.DataFrame:
     """
     Post-processing of flower predictions outputet as json. 
