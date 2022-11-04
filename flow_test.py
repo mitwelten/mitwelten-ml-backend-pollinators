@@ -8,7 +8,6 @@ from prefect import flow
 from src.etl.extract import (
     download_files, 
     get_checkpoint,
-    load_image_batch
 )
 from src.etl.transform import model_predict
 from src.etl.load import update_processed_data
@@ -17,22 +16,18 @@ from src.etl.clients import get_db_client, get_minio_client
 
 
 @flow(name='test-flow')
-def etl_flow(BATCHSIZE=16, TEST_DATA='synthetic_table.csv', IS_TEST=True):
+def etl_flow(BATCHSIZE=16, config_path='test_config.yaml'):
 
     # get checkpoint from SQL before loading next
-    # Load Configurations
-    with open('bucket_config.yaml', 'rb') as yaml_file:
-        bucket_config = yaml.load(yaml_file, yaml.FullLoader)
-
-    # Init clients
-    conn = get_db_client(config_path='test_config.yaml')
-    minio_client = get_minio_client(config_path='test_config.yaml')
+    # Load Configurations and Init clients
+    conn = get_db_client(config_path=config_path)
+    minio_client = get_minio_client(config_path=config_path)
 
     # Load configs
-    with open('test_config.yaml') as yaml_file:
+    with open(config_path, 'rb') as yaml_file:
         config = yaml.load(yaml_file, yaml.FullLoader)
 
-    with open('model_config.json', 'r') as json_file:
+    with open(config_path, 'r') as json_file:
         model_config = json.load(json_file)
 
     # --------------------------------
