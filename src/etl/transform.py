@@ -201,8 +201,64 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
     return flower_predictions
 
 
-def process_pollinator_predictions(pollinator_predictions: dict, result_ids: pd.DataFrame):
-    pass
+def process_pollinator_predictions(pollinator_predictions: dict, flower_predictions: pd.DataFrame) -> pd.DataFrame:
+    """
+    Processes pollinator predictions. Adds relevant columsn for DB ingestion and transforms the bbox outputs given the
+    the bbox outputs from flower_predictions.
+
+    Parameters
+    ----------
+    pollinator_predictions : dict
+        Modell output pollinator predictions
+
+    flower_predictions : pd.DataFrame
+        Pre-processed flower predictions model output
+
+    Returns
+    -------
+    pd.DataFrame
+        processed pollinator predictions ready for DB ingestion.
+    """
+
+    pollinator_predictions = pd.DataFrame.from_records(pollinator_predictions)
+    
+    # Join with DB data
+    # Merge with flowers to get size of BB
+    pollinator_predictions = pd.merge(
+        left=pollinator_predictions, 
+        right=flower_predictions[['object_name', 'flower_box_id', 'result_id', 'x0', 'y0', 'x1', 'y1']], 
+        left_on=['object_name', 'flower_box_id'], right_on=['object_name', 'flower_box_id'], 
+        how='inner'
+    )
+    # rename columns
+    pollinator_predictions = pollinator_predictions.rename(
+        columns={
+            'x0': 'f_x0', 'x1': 'f_x1',
+            'y0': 'f_y0', 'y1': 'f_y1'
+        }
+    )
+    # Calculate BBoxes given previous flower perdiction
+    pollinator_predictions['p_x0'] = pollinator_predictions['pollinator_boxes'].apply(lambda x: x[0]).astype(int)
+    pollinator_predictions['p_y0'] = pollinator_predictions['pollinator_boxes'].apply(lambda x: x[1]).astype(int)
+    pollinator_predictions['p_x1'] = pollinator_predictions['pollinator_boxes'].apply(lambda x: x[2]).astype(int)
+    pollinator_predictions['p_y1'] = pollinator_predictions['pollinator_boxes'].apply(lambda x: x[3]).astype(int)
+
+    # new_xmin = flower_xmin + polli_xmin / new_ymin = flower_ymin + polli_ymin
+    pollinator_predictions['x0'] = pollinator_predictions['f_x0'] + pollinator_predictions['p_x0']
+    pollinator_predictions['y0'] = pollinator_predictions['f_y0'] + pollinator_predictions['p_y0']
+    # new_xmax = flower_xmin + polli_xmax / new_ymax = flower_xmin + polli_ymax
+    pollinator_predictions['x1'] = pollinator_predictions['f_x0'] + pollinator_predictions['p_x1']
+    pollinator_predictions['y1'] = pollinator_predictions['f_y0'] + pollinator_predictions['p_y1']
+
+    pollinator_predictions = pollinator_predictions.drop(
+        [
+            'p_x0', 'p_x1', 'p_y0', 'p_y1', 'f_x0', 'f_x1', 'f_y0',
+            'f_y1', 'pollinator_boxes', 'pollinator_classes'
+        ], 
+        axis=1
+    )
+
+    return pollinator_predictions
 
 
 if __name__ == '__main__':
