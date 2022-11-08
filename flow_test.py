@@ -2,14 +2,20 @@ import os
 import yaml
 import json
 
-from minio import Minio
+#from minio import Minio
+import pandas as pd
 from prefect import flow
 
 from src.etl.extract import (
     download_files, 
     get_checkpoint,
 )
-from src.etl.transform import model_predict, process_flower_predictions
+from src.etl.transform import (
+    model_predict, 
+    process_flower_predictions,
+    process_pollinator_predictions
+)
+
 from src.etl.load import (
     update_processed_data, 
     db_get_image_results, 
@@ -22,18 +28,18 @@ from src.etl.clients import get_db_client, get_minio_client
 
 
 @flow(name='test-flow')
-def etl_flow(BATCHSIZE=32, config_path='test_config.yaml', model_config_path = 'model_config.json'):
+def etl_flow(BATCHSIZE=32, CONFIG_PATH='test_config.yaml', MODEL_CONFIG_PATH = 'model_config.json', IS_TEST=True):
 
     # get checkpoint from SQL before loading next
     # Load Configurations and Init clients
-    conn = get_db_client(config_path=config_path)
-    minio_client = get_minio_client(config_path=config_path)
+    conn = get_db_client(config_path=CONFIG_PATH)
+    minio_client = get_minio_client(config_path=CONFIG_PATH)
 
     # Load configs
-    with open(config_path, 'rb') as yaml_file:
+    with open(CONFIG_PATH, 'rb') as yaml_file:
         config = yaml.load(yaml_file, yaml.FullLoader)
 
-    with open(model_config_path, 'r') as json_file:
+    with open(MODEL_CONFIG_PATH, 'r') as json_file:
         model_config = json.load(json_file)
 
     # --------------------------------
@@ -56,40 +62,51 @@ def etl_flow(BATCHSIZE=32, config_path='test_config.yaml', model_config_path = '
         data=df_ckp,
         cfg=model_config
     )
+    # Insert image results and get back result_ids 
+    result_ids = db_insert_image_results(
+        conn=conn,
+        data=df_ckp,
+        model_config=model_config
+    )
+    df_ckp['result_id'] = result_ids
 
-    # Post-process flower predictino output
-    # write results to json
-    with open('flower_predictions.json', 'w') as json_file:
-        json.dump(flower_predictions, json_file)
+    if IS_TEST:
+        df_ckp.to_csv('checkpoint_df.csv', index=False)
+        # Post-process flower predictions output
+        # write results to json
+        with open('flower_predictions.json', 'w') as json_file:
+            json.dump(flower_predictions, json_file)
+        with open('pollinator_predictions.json', 'w') as json_file:
+            json.dump(pollinator_predictions, json_file)
 
-    result_ids = db_get_image_results(conn=conn)
     flower_predictions = process_flower_predictions(
         flower_predictions=flower_predictions,
-        result_ids=result_ids
+        result_ids=df_ckp,
+        model_config=model_config
     )
 
-    # Post-process pollinator prediction output
-    with open('pollinator_predictions.json', 'w') as json_file:
-        json.dump(pollinator_predictions, json_file)
 
 
-
-
+    """pollinator_predictions = process_pollinator_predictions(
+        pollinator_predictions=pollinator_predictions,
+        result_ids=result_ids
+    )"""
     # --------------------------------
     # Load
     # --------------------------------
-    
+
+    # Inserts model config if not exists
+    db_insert_model_config(conn=conn, model_config=model_config) 
+
+
+
 
 
     # --------------------------------
     # Update
     # --------------------------------
-    """df_ckp = update_processed_data(
-        df=df_ckp, 
-        processed_ids=df_ckp['object_name'].to_list(),
-        path=TEST_DATA
-    )"""
-
+    
+    conn.close()
 
 
     
