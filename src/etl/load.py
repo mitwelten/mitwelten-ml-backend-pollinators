@@ -112,13 +112,18 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
     model_config : dict
         model configuration
 
+    Returns
+    ---------
+    result_ids: list
+        Resulting auto generated result_id
     """
     model_id = model_config['config_id']
     data['model_id'] = model_id
     records = data[['file_id', 'model_id']].to_records(index=False)
+    results = []
     try:    
         with conn.cursor() as cursor:
-            for record in records:  
+            for record in tqdm(records):  
                 file_id = int(record[0])
                 model_id = record[1]
                 cursor.execute(
@@ -129,13 +134,18 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                         SELECT file_id, config_id FROM image_results 
                         WHERE file_id = %s AND config_id = %s
                     )
+                    RETURNING result_id
                     """,
                     (file_id, model_id, file_id, model_id)
                 )
+                result = cursor.fetchone()[0]
+                results.append(result)
     except Exception:
-        raise Exception('Could not insert.')
+        raise Exception('Could not insert. Value might be written already to DB.')
     finally:
         conn.commit()
+        
+    return results
 
 @task
 def db_get_image_results(conn: object) -> pd.DataFrame:
