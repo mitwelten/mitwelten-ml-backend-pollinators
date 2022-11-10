@@ -183,7 +183,7 @@ def db_get_image_results(conn: object) -> pd.DataFrame:
     colnames = [desc[0] for desc in cursor.description]
     return pd.DataFrame.from_records(data=data, columns=colnames)
 
-@task(name='Insert Flower Predictions')
+@task(name='Insert flower predictions into table flowers')
 def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
     """Inserts flower predictions to flower table.
 
@@ -223,7 +223,7 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
     
     return flower_ids  
 
-
+@task(name='Insert pollinator predictions into table pollinators')
 def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame):
     """Inserts data for pollinator predictions
 
