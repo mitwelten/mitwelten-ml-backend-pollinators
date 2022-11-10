@@ -34,7 +34,7 @@ def get_checkpoint(conn: object, request_batch_size: int) -> pd.DataFrame:
         raise Exception('Could not retrieve data from DB.')
 
     # interrupt run if there is no new data
-    assert len(data) == 0, 'No unprocessed datapoints available stopping procedure.'
+    #assert len(data) == 0, 'No unprocessed datapoints available stopping procedure.'
 
     return pd.DataFrame.from_records(
         data=data, 
