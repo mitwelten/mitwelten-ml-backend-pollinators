@@ -100,7 +100,7 @@ def db_insert_model_config(conn: object, model_config: dict):
 
 
 @task(name='Insert image_results')
-def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict):
+def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict, allow_multiple_results: bool = True):
     """Adds processed data to image_results. Insert statement looks duplicated values during insertion.
 
     Parameters
@@ -114,38 +114,64 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
     model_config : dict
         model configuration
 
+    allow_multiple_results: bool (default; True)
+        if true then allows multiple predictions for one image, else
+        the program will throw an error if theres an existig prediction for an image
+
     Returns
     ---------
     result_ids: list
         Resulting auto generated result_id
     """
-    model_id = model_config['config_id']
-    data['model_id'] = model_id
-    records = data[['file_id', 'model_id']].to_records(index=False)
+    config_id = model_config['config_id']
+    data['config_id'] = config_id
+    records = data[['file_id', 'config_id']].to_records(index=False)
     results = []
-    try:    
-        with conn.cursor() as cursor:
-            for record in tqdm(records):  
-                file_id = int(record[0])
-                model_id = record[1]
-                cursor.execute(
-                    """
-                    INSERT INTO image_results (file_id, config_id)
-                    SELECT %s, %s
-                    WHERE NOT EXISTS (
-                        SELECT file_id, config_id FROM image_results 
-                        WHERE file_id = %s AND config_id = %s
+
+    if not allow_multiple_results:    
+        try:    
+            with conn.cursor() as cursor:
+                for record in tqdm(records):  
+                    file_id = int(record[0])
+                    model_id = record[1]
+                    cursor.execute(
+                        """
+                        INSERT INTO image_results (file_id, config_id)
+                        SELECT %s, %s
+                        WHERE NOT EXISTS (
+                            SELECT file_id, result_id FROM image_results 
+                            WHERE file_id = %s AND config_id = %s
+                        )
+                        RETURNING result_id
+                        """,
+                        (file_id, config_id, file_id, config_id)
                     )
-                    RETURNING result_id
-                    """,
-                    (file_id, model_id, file_id, model_id)
-                )
-                result = cursor.fetchone()[0]
-                results.append(result)
-    except Exception:
-        raise Exception('Could not insert. Value might be written already to DB.')
-    finally:
-        conn.commit()
+                    result = cursor.fetchone()[0]
+                    results.append(result)
+        except Exception:
+            raise Exception('Could not insert. Values might be written already to DB.')
+        finally:
+            conn.commit()
+    else:
+        try:    
+            with conn.cursor() as cursor:
+                for record in tqdm(records):  
+                    file_id = int(record[0])
+                    model_id = record[1]
+                    cursor.execute(
+                        """
+                        INSERT INTO image_results (file_id, config_id)
+                        VALUES (%s, %s)
+                        RETURNING result_id
+                        """,
+                        (file_id, config_id)
+                    )
+                    result = cursor.fetchone()[0]
+                    results.append(result)
+        except Exception:
+            raise Exception('Could not insert. Values might be written already to DB.')
+        finally:
+            conn.commit()
         
     return results
 
