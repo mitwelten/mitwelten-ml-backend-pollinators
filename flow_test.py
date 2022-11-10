@@ -30,7 +30,7 @@ from src.etl.clients import (
 
 @flow(name='test-flow')
 def etl_flow(
-        BATCHSIZE=4, CONFIG_PATH='test_config.yaml', MODEL_CONFIG_PATH='model_config.json', IS_TEST=False, MULTI_RESULTS_FOR_IMAGE=True):
+        BATCHSIZE=64, CONFIG_PATH='test_config.yaml', MODEL_CONFIG_PATH='model_config.json', IS_TEST=False, MULTI_RESULTS_FOR_IMAGE=True):
 
     # get checkpoint from SQL before loading next
     # Load Configurations and Init clients
