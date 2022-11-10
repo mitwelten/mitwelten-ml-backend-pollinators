@@ -66,7 +66,8 @@ def is_model_config_up(conn: object, model_config: dict) -> bool:
     
     return model_config in all_configs
 
-@task
+
+@task(name='Insert model_config')
 def db_insert_model_config(conn: object, model_config: dict):
     """Inserts model config into db
 
@@ -97,7 +98,8 @@ def db_insert_model_config(conn: object, model_config: dict):
     else:
         print('Model Config alrealdy up.')
 
-@task
+
+@task(name='Insert image_results')
 def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict):
     """Adds processed data to image_results. Insert statement looks duplicated values during insertion.
 
@@ -147,7 +149,8 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
         
     return results
 
-@task
+
+@task(name='Get Image Results')
 def db_get_image_results(conn: object) -> pd.DataFrame:
     """Returns table of current image results
 
@@ -180,7 +183,7 @@ def db_get_image_results(conn: object) -> pd.DataFrame:
     colnames = [desc[0] for desc in cursor.description]
     return pd.DataFrame.from_records(data=data, columns=colnames)
 
-@task
+@task(name='Insert Flower Predictions')
 def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
     """Inserts flower predictions to flower table.
 
@@ -195,7 +198,7 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
     records = data[[
         'result_id', 'flower_name', 'flower_score',
         'x0', 'y0', 'x1', 'y1']].to_records(index=False)
-
+    flower_ids = []
     try:    
         with conn.cursor() as cursor:
             for record in tqdm(records):  
@@ -203,14 +206,18 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
                     """
                     INSERT INTO flowers (result_id, class, confidence, x0, y0, x1, y1)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING flower_id
                     """,
                     record
                 )
+                flower_ids.append(cursor.fetchone()[0])
     except Exception:
         raise Exception('Could not insert.')
     finally:
         conn.commit()
-        
+    
+    return flower_ids  
+
 
 @task
 def update_processed_data(df: pd.DataFrame, processed_ids: list, path: str) -> pd.DataFrame:
