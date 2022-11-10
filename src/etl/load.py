@@ -194,6 +194,11 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
 
     data : pd.DataFrame
         Pre-processed data ready for insertion.
+
+    Returns
+    --------
+    flower_ids
+        auto incremented flower ids from postgres
     """  
     records = data[[
         'result_id', 'flower_name', 'flower_score',
@@ -217,6 +222,37 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
         conn.commit()
     
     return flower_ids  
+
+
+def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame):
+    """Inserts data for pollinator predictions
+
+    Parameters
+    ----------
+    conn : object
+        psycopg2 db connection object
+
+    data : pd.DataFrame
+        Pre-processed data ready for insertion.
+    """    
+    records = data[[
+        'result_id', 'flower_id', 
+        'pollinator_names', 'pollinator_scores',
+        'x0', 'y0', 'x1', 'y1']].to_records(index=False)
+    try:    
+        with conn.cursor() as cursor:
+            for record in tqdm(records):  
+                cursor.execute(
+                    """
+                    INSERT INTO pollinators (result_id, flower_id, class, confidence, x0, y0, x1, y1)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    record
+                )
+    except Exception:
+        raise Exception('Could not insert.')
+    finally:
+        conn.commit()
 
 
 @task
