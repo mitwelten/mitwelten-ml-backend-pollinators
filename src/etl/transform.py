@@ -80,7 +80,7 @@ def init_models(cfg: dict):
     return flower_model, pollinator_model
 
 
-@task
+@task(name='Model inference')
 def model_predict(data: pd.DataFrame, cfg: dict): 
 
     flower_model, pollinator_model = init_models(cfg=cfg) 
@@ -150,7 +150,7 @@ def model_predict(data: pd.DataFrame, cfg: dict):
 
     return flower_predictions, pollinator_predictions            
 
-@task
+@task(name='Process flower predictions')
 def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFrame, model_config: float) -> pd.DataFrame:
     """
     Post-processing of flower predictions outputet as json. 
@@ -200,7 +200,7 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
 
     return flower_predictions
 
-
+@task(name='Process pollinator predictions')
 def process_pollinator_predictions(pollinator_predictions: dict, flower_predictions: pd.DataFrame) -> pd.DataFrame:
     """
     Processes pollinator predictions. Adds relevant columsn for DB ingestion and transforms the bbox outputs given the
@@ -226,7 +226,7 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
     # Merge with flowers to get size of BB
     pollinator_predictions = pd.merge(
         left=pollinator_predictions, 
-        right=flower_predictions[['object_name', 'flower_box_id', 'result_id', 'x0', 'y0', 'x1', 'y1']], 
+        right=flower_predictions[['object_name', 'flower_box_id', 'result_id', 'flower_id', 'x0', 'y0', 'x1', 'y1']], 
         left_on=['object_name', 'flower_box_id'], right_on=['object_name', 'flower_box_id'], 
         how='inner'
     )
