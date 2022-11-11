@@ -33,7 +33,7 @@ docker build . --file Dockerfile --tag pollinator-ml-backend-image
 
 Start container
 ```bash
-docker run -it -v $PWD:/root/ --name pollinator-ml-backend --gpus all pollinator-ml-backend-image
+docker run -it -v $PWD:/root/ --name pollinator-ml-backend --gpus all --net=host pollinator-ml-backend-image
 ```
 
 Inside Container CLI check CUDA version
