@@ -219,9 +219,8 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
     pd.DataFrame
         processed pollinator predictions ready for DB ingestion.
     """
-
     pollinator_predictions = pd.DataFrame.from_records(pollinator_predictions)
-    
+
     # Join with DB data
     # Merge with flowers to get size of BB
     pollinator_predictions = pd.merge(
