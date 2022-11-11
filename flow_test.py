@@ -80,7 +80,6 @@ def etl_flow(
         model_config=model_config,
         allow_multiple_results=MULTI_RESULTS_FOR_IMAGE
     )
-    print(result_ids)
     df_ckp['result_id'] = result_ids
 
     if IS_TEST:
@@ -91,8 +90,6 @@ def etl_flow(
             json.dump(flower_predictions, json_file)
         with open('pollinator_predictions.json', 'w') as json_file:
             json.dump(pollinator_predictions, json_file)
-
-    # Insert image_results
 
     # Flower predictions pre-processing and ingestion
     flower_predictions = process_flower_predictions(
