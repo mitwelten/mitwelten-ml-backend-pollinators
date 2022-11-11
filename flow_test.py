@@ -46,10 +46,13 @@ def etl_flow(
 
     # --------------------------------
     # Extract
-    # --------------------------------
+    # --------------------------------    
+
+    # Extract objects to be processed
     df_ckp = get_checkpoint(
         conn=conn,
-        request_batch_size=BATCHSIZE
+        request_batch_size=BATCHSIZE,
+        model_config_id=model_config['config_id']
     )
 
     print(f'Processing {df_ckp.shape[0]} datapoints.')
