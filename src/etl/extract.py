@@ -15,16 +15,18 @@ from .clients import get_db_client
 
 
 @task(name='Get checkpoint of an unprocessed image')
-def get_checkpoint(conn: object, request_batch_size: int) -> pd.DataFrame:
+def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) -> pd.DataFrame:
     try:
         with conn.cursor() as cursor:        
             cursor.execute(
             f"""
-            SELECT files_image.file_id, files_image.object_name, image_results.result_id 
+            SELECT 	files_image.file_id, files_image.object_name, 
+		            image_results.result_id, pollinator_inference_config.config_id
             FROM files_image 
             LEFT JOIN image_results 
             ON files_image.file_id = image_results.file_id
-            WHERE image_results.result_id IS NULL
+            LEFT JOIN pollinator_inference_config ON image_results.config_id = pollinator_inference_config.config_id
+            WHERE pollinator_inference_config.config_id != {model_config_id}
             LIMIT {request_batch_size}
             """
             )
