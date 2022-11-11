@@ -16,6 +16,27 @@ from .clients import get_db_client
 
 @task(name='Get checkpoint of an unprocessed image')
 def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) -> pd.DataFrame:
+    """
+    Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given 
+    model configuration.
+
+    Parameters
+    ----------
+    conn : object
+        psycopg2 database client
+
+    request_batch_size : int
+        batch size to process at each iteration
+
+    model_config_id : str
+        model configuration ID.
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with the current objects for this iteration
+    """
+    
     if '\n' in model_config_id:
         model_config_id = model_config_id.replace('\n', '')
     print('Current Model Config ID:', model_config_id)
@@ -24,13 +45,17 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
         with conn.cursor() as cursor:        
             cursor.execute(
             f"""
-            SELECT 	files_image.file_id, files_image.object_name, 
-		            image_results.result_id, pollinator_inference_config.config_id
-            FROM files_image 
-            LEFT JOIN image_results 
-            ON files_image.file_id = image_results.file_id
-            LEFT JOIN pollinator_inference_config ON image_results.config_id = pollinator_inference_config.config_id
-            WHERE image_results.config_id != %s
+            SELECT DISTINCT ON (files_image.file_id)
+                files_image.file_id, files_image.object_name, 
+                image_results.result_id, image_results.config_id 
+            FROM image_results
+            RIGHT JOIN files_image 
+            ON image_results.file_id = files_image.file_id
+            WHERE files_image.file_id NOT IN (
+                SELECT file_id
+                FROM image_results
+                WHERE config_id = %s
+            )
             LIMIT %s
             """,
             (model_config_id, request_batch_size)
@@ -41,7 +66,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
         raise Exception('Could not retrieve data from DB.')
 
     # interrupt run if there is no new data
-    assert len(data) > 0, 'No unprocessed datapoints available. Stopping procedure.'
+    assert len(data) > 0, 'No unprocessed datapoints available for this configuration. Stopping procedure.'
 
     return pd.DataFrame.from_records(
         data=data, 
