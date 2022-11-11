@@ -6,23 +6,23 @@ import json
 import pandas as pd
 from prefect import flow
 
-from src.etl.extract import (
+from src.extract import (
     download_files,
     get_checkpoint,
 )
-from src.etl.transform import (
+from src.transform import (
     model_predict,
     process_flower_predictions,
     process_pollinator_predictions
 )
 
-from src.etl.load import (
+from src.load import (
     db_insert_flower_predictions,
     db_insert_image_results,
     db_insert_model_config,
     db_insert_pollinator_predictions
 )
-from src.etl.clients import (
+from src.clients import (
     get_db_client,
     get_minio_client
 )
