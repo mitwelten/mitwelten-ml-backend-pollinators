@@ -127,13 +127,12 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
     data['config_id'] = config_id
     records = data[['file_id', 'config_id']].to_records(index=False)
     results = []
-
     if not allow_multiple_results:    
         try:    
             with conn.cursor() as cursor:
                 for record in tqdm(records):  
                     file_id = int(record[0])
-                    model_id = record[1]
+                    config_id = record[1]
                     cursor.execute(
                         """
                         INSERT INTO image_results (file_id, config_id)
@@ -157,7 +156,7 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
             with conn.cursor() as cursor:
                 for record in tqdm(records):  
                     file_id = int(record[0])
-                    model_id = record[1]
+                    config_id = record[1]
                     cursor.execute(
                         """
                         INSERT INTO image_results (file_id, config_id)
