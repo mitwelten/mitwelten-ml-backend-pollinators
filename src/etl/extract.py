@@ -30,9 +30,10 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
             LEFT JOIN image_results 
             ON files_image.file_id = image_results.file_id
             LEFT JOIN pollinator_inference_config ON image_results.config_id = pollinator_inference_config.config_id
-            WHERE image_results.config_id != {model_config_id}
-            LIMIT {request_batch_size}
-            """
+            WHERE image_results.config_id != %s
+            LIMIT %s
+            """,
+            (model_config_id, request_batch_size)
             )
             data = cursor.fetchall()
             colnames = [desc[0] for desc in cursor.description]
