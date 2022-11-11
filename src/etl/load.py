@@ -139,7 +139,7 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                         INSERT INTO image_results (file_id, config_id)
                         SELECT %s, %s
                         WHERE NOT EXISTS (
-                            SELECT file_id, result_id FROM image_results 
+                            SELECT file_id, config_id FROM image_results 
                             WHERE file_id = %s AND config_id = %s
                         )
                         RETURNING result_id
