@@ -14,7 +14,7 @@ from .clients import get_db_client
 
 
 
-@task
+@task(name='Get checkpoint of an unprocessed image')
 def get_checkpoint(conn: object, request_batch_size: int) -> pd.DataFrame:
     try:
         with conn.cursor() as cursor:        
@@ -41,12 +41,12 @@ def get_checkpoint(conn: object, request_batch_size: int) -> pd.DataFrame:
         columns=colnames
     )  
 
-@task
+@task(name='Test function which loads batch from test data')
 def load_image_batch(data: pd.DataFrame, size: int = 32):
     return data[data['processed'] == 0].iloc[:size]
 
 
-@task
+@task(name='Get object paths from s3')
 def get_object_paths(client: object, bucket_name: str, prefix: str | list, file_endings: list = ['.jpg', '.png']) -> list:
     """
     Extracts the path of all objects in a bucket by given prefix.
@@ -82,7 +82,7 @@ def get_object_paths(client: object, bucket_name: str, prefix: str | list, file_
 
     return object_paths
 
-@task
+@task(name='Download files for inference')
 def download_files(client: object, bucket_name: str, filenames: list, n_threads: int = 8):
     """
     Downloads all files given by path. Simultaneously creates similar folder structure local.
