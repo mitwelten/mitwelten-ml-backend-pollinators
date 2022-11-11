@@ -116,5 +116,4 @@ def etl_flow(
 
 
 if __name__ == "__main__":
-    while True:
-        etl_flow()
+    etl_flow()
