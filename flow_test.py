@@ -30,7 +30,7 @@ from src.etl.clients import (
 
 @flow(name='test-flow')
 def etl_flow(
-        BATCHSIZE=64, CONFIG_PATH='test_config.yaml', MODEL_CONFIG_PATH='model_config.json', IS_TEST=False, MULTI_RESULTS_FOR_IMAGE=True):
+        BATCHSIZE=256, CONFIG_PATH='test_config.yaml', MODEL_CONFIG_PATH='model_config.json', IS_TEST=False, MULTI_RESULTS_FOR_IMAGE=False):
 
     # get checkpoint from SQL before loading next
     # Load Configurations and Init clients
@@ -76,6 +76,7 @@ def etl_flow(
         data=df_ckp,
         cfg=model_config
     )
+
     # Insert image results and get back result_ids
     result_ids = db_insert_image_results(
         conn=conn,
@@ -94,37 +95,42 @@ def etl_flow(
         with open('pollinator_predictions.json', 'w') as json_file:
             json.dump(pollinator_predictions, json_file)
 
-    # Flower predictions pre-processing and ingestion
-    flower_predictions = process_flower_predictions(
-        flower_predictions=flower_predictions,
-        result_ids=df_ckp,
-        model_config=model_config
-    )
-    flower_ids = db_insert_flower_predictions(
-        conn=conn,
-        data=flower_predictions
-    )
-    # Append IDs to flower predictions
-    flower_predictions = pd.concat(
-        [flower_predictions, pd.Series(flower_ids)],
-        axis=1
-    )
-    flower_predictions = flower_predictions.rename(
-        columns={0: 'flower_id'}
-    )
-
-    # Pollinator predictions pre-processing and ingestion
-    pollinator_predictions = process_pollinator_predictions(
-        pollinator_predictions=pollinator_predictions,
-        flower_predictions=flower_predictions
-    )
-    db_insert_pollinator_predictions(
-        conn=conn,
-        data=pollinator_predictions
-    )
+    if len(flower_predictions) > 0:
+        # Flower predictions pre-processing and ingestion
+        flower_predictions = process_flower_predictions(
+            flower_predictions=flower_predictions,
+            result_ids=df_ckp,
+            model_config=model_config
+        )
+        flower_ids = db_insert_flower_predictions(
+            conn=conn,
+            data=flower_predictions
+        )
+        # Append IDs to flower predictions
+        flower_predictions = pd.concat(
+            [flower_predictions, pd.Series(flower_ids)],
+            axis=1
+        )
+        flower_predictions = flower_predictions.rename(
+            columns={0: 'flower_id'}
+        )
+        if len(pollinator_predictions) > 0:
+                
+            # Pollinator predictions pre-processing and ingestion
+            pollinator_predictions = process_pollinator_predictions(
+                pollinator_predictions=pollinator_predictions,
+                flower_predictions=flower_predictions
+            )
+            db_insert_pollinator_predictions(
+                conn=conn,
+                data=pollinator_predictions
+            )
+    else:
+        print('No Flowers or Pollinators predicted')
 
     conn.close()
 
 
 if __name__ == '__main__':
-    etl_flow()
+    while True:
+        etl_flow()
