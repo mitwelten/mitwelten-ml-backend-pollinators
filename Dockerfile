@@ -20,7 +20,7 @@ COPY . .
 RUN python -m pip install -r requirements.txt
 
 # Expose ports
-# prefect, jlab, postgres, minio
-EXPOSE 4200 8888 5432 9000
+# prefect, jlab
+EXPOSE 4200 8888
 
 ENTRYPOINT [ "bash" ]
