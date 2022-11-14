@@ -79,7 +79,7 @@ def load_image_batch(data: pd.DataFrame, size: int = 32):
 
 
 @task(name='Get object paths from s3')
-def get_object_paths(client: object, bucket_name: str, prefix: str | list, file_endings: list = ['.jpg', '.png']) -> list:
+def get_object_paths(client: object, bucket_name: str, prefix: 'str | list', file_endings: list = ['.jpg', '.png']) -> list:
     """
     Extracts the path of all objects in a bucket by given prefix.
 
