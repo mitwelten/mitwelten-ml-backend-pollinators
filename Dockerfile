@@ -1,6 +1,9 @@
 FROM ultralytics/yolov5:latest
 
-RUN apt-get update 
+RUN apt-get update
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Zurich
+RUN apt-get install -y wget tzdata
 
 WORKDIR /root
 
