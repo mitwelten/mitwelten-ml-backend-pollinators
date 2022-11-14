@@ -1,0 +1,13 @@
+# Database
+POSTGRES_USER: "user"
+POSTGRES_PASSWORD: "password"
+DB_HOST: "host"
+DB_PORT: 1234
+DB_NAME: "db_name"
+
+# Minio
+MINIO_BUCKET_NAME: "test"
+MINIO_HOST: "host:1234"
+MINIO_ACCESS_KEY: "test"
+MINIO_SECRET_KEY: "secret"
+MINIO_SECURE: false
