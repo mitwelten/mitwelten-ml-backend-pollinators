@@ -1,0 +1,37 @@
+{
+    "config_id": "CONFIG001",
+    "flower": {
+        "weights_path": "./src/Pollinatordetection/models/flowers_ds_v5_640_yolov5n_box_hyps_v0.pt",
+        "class_names": [
+            "daisy",
+            "wildemoere",
+            "flockenblume"
+        ],
+        "confidence_threshold": 0.66,
+        "iou_threshold": 0.45,
+        "max_detections": 30,
+        "margin": 15,
+        "multi_label": false,
+        "multi_label_iou_threshold": 0.9,
+        "augment": false,
+        "image_size": 640
+    },
+    "pollinator": {
+        "weights_path": "./src/Pollinatordetection/models/pollinators_ds_v6_480_yolov5s_hyps_v0.pt",
+        "class_names": [
+            "honigbiene",
+            "wildbiene",
+            "hummel",
+            "schwebfliege",
+            "fliege"
+        ],
+        "confidence_threshold": 0.65,
+        "iou_threshold": 0.45,
+        "max_detections": 10,
+        "margin": 50,
+        "multi_label": false,
+        "multi_label_iou_threshold": 0.45,
+        "augment": false,
+        "image_size": 480
+    }   
+}
