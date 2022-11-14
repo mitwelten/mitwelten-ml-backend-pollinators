@@ -33,13 +33,12 @@ docker build . --file Dockerfile --tag pollinator-ml-backend-image
 
 Start container
 ```bash
-docker run -it -v $PWD:/root/ --name pollinator-ml-backend --gpus all --net=host pollinator-ml-backend-image
+docker run -it -v $PWD:/root/ --name pollinator-ml-backend --gpus all -p 4200:4200 pollinator-ml-backend-image
 ```
 
 Inside Container CLI check CUDA version
 ```bash
 nvidia-smi
-
 ```
 The output should look like this:
 ```bash
@@ -73,7 +72,7 @@ docker build . --file Dockerfile --tag pollinator-ml-backend-image
 
 Start container
 ```bash
-docker run -it -v $PWD:/root/ --name pollinator-ml-backend pollinator-ml-backend-image
+docker run -it -v $PWD:/root/ -p 4200:4200 --name pollinator-ml-backend pollinator-ml-backend-image
 ```
 
 ### Manual setup with python pip
@@ -99,9 +98,46 @@ Install project specific packages:
 ```bash
 python pip install -r requirements.txt
 ```
-## Deployment (to be added)
 
-## Run Locally (to be added)
+
+## Prefect 2 Deployment
+
+Make sure container is running
+```bash
+docker run pollinator-ml-backend
+```
+
+Enter bash inside of container
+```bash
+docker exec -it pollinator-ml-backend bash
+```
+
+Create deployment file with prefect
+```bash
+prefect deployment build flow_test:etl_flow -n pollinator -q pollinator-queue
+```
+More information and examples on [prefect 2 deployments](https://docs.prefect.io/concepts/deployments/)
+
+Apply deployment
+```bash
+prefect deployment apply etl_flow-deployment.yaml
+```
+
+
+## Run Locally 
+Within container: 
+
+Start user interface ()
+```bash
+prefect orion start --host 0.0.0.0
+```
+
+Start working queue
+```bash
+prefect agent start --work-queue "pollinator-queue"
+```
+Everything should be controllable by the orion UI, where schedules and jobs can be applied. The working queue is listening to the deployment and runs jobs as soon as they are scheduled.
+
 
 
 ## Authors
