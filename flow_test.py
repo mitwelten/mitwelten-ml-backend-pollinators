@@ -5,15 +5,15 @@ import pandas as pd
 import yaml
 from prefect import flow
 
-from src.clients import get_db_client, get_minio_client
-from src.extract import download_files, get_checkpoint
-from src.load import (
+from src.pipeline.clients import get_db_client, get_minio_client
+from src.pipeline.extract import download_files, get_checkpoint
+from src.pipeline.load import (
     db_insert_flower_predictions,
     db_insert_image_results,
     db_insert_model_config,
     db_insert_pollinator_predictions,
 )
-from src.transform import (
+from src.pipeline.transform import (
     model_predict,
     process_flower_predictions,
     process_pollinator_predictions,
