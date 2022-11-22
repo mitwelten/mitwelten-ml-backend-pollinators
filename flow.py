@@ -27,7 +27,7 @@ from src.pipeline.transform import (
 @flow(name="flower_pollinator_pipeline")
 def etl_flow(
     BATCHSIZE=256,
-    CONFIG_PATH="config.yaml",
+    CONFIG_PATH="source_config.yaml",
     MODEL_CONFIG_PATH="model_config.json",
     IS_TEST=False,
     MULTI_RESULTS_FOR_IMAGE=False,
