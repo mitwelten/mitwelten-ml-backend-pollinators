@@ -13,8 +13,11 @@ from multiprocessing.pool import ThreadPool as Pool
 from .clients import get_db_client
 
 
-
-@task(name='Get checkpoint of an unprocessed image')
+@task(
+    name='Get checkpoint of unprocessed images',
+    retries=10, 
+    retry_delay_seconds=120, # overall 10 * 120s = 20 min retrying
+)
 def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) -> pd.DataFrame:
     """
     Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given 
@@ -36,15 +39,15 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
     pd.DataFrame
         dataframe with the current objects for this iteration
     """
-    
+
     if '\n' in model_config_id:
         model_config_id = model_config_id.replace('\n', '')
     print('Current Model Config ID:', model_config_id)
 
     try:
-        with conn.cursor() as cursor:        
+        with conn.cursor() as cursor:
             cursor.execute(
-            f"""
+                f"""
             SELECT DISTINCT ON (files_image.file_id)
                 files_image.file_id, files_image.object_name, 
                 image_results.result_id, image_results.config_id 
@@ -58,7 +61,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
             )
             LIMIT %s
             """,
-            (model_config_id, request_batch_size)
+                (model_config_id, request_batch_size)
             )
             data = cursor.fetchall()
             colnames = [desc[0] for desc in cursor.description]
@@ -66,12 +69,14 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
         raise Exception('Could not retrieve data from DB.')
 
     # interrupt run if there is no new data
-    assert len(data) > 0, 'No unprocessed datapoints available for this configuration. Stopping procedure.'
+    assert len(
+        data) > 0, 'No unprocessed datapoints available for this configuration. Stopping procedure.'
 
     return pd.DataFrame.from_records(
-        data=data, 
+        data=data,
         columns=colnames
-    )  
+    )
+
 
 @task(name='Test function which loads batch from test data')
 def load_image_batch(data: pd.DataFrame, size: int = 32):
@@ -104,15 +109,16 @@ def get_object_paths(client: object, bucket_name: str, prefix: 'str | list', fil
     """
     object_paths = []
     if isinstance(prefix, list):
-        for p in prefix:        
+        for p in prefix:
             for element in client.list_objects(bucket_name=bucket_name, prefix=p, recursive=True):
                 if any([element.object_name.endswith(f_suffix) for f_suffix in file_endings]):
                     object_paths.append(element.object_name)
     else:
         for element in client.list_objects(bucket_name=bucket_name, prefix=prefix, recursive=True):
-                object_paths.append(element.object_name)
+            object_paths.append(element.object_name)
 
     return object_paths
+
 
 @task(name='Download files for inference')
 def download_files(client: object, bucket_name: str, filenames: list, n_threads: int = 8):
@@ -146,8 +152,8 @@ def download_files(client: object, bucket_name: str, filenames: list, n_threads:
         print(f'Loading {filename}')
         try:
             client.fget_object(
-                bucket_name=bucket_name, 
-                object_name=filename, 
+                bucket_name=bucket_name,
+                object_name=filename,
                 file_path=filename
             )
         except Exception as e:
@@ -156,7 +162,7 @@ def download_files(client: object, bucket_name: str, filenames: list, n_threads:
     start = time.perf_counter()
     # Use multiprocessing (or multithreading?)
     with Pool(processes=n_threads) as pool:
-        pool.starmap(_download_file_mp, list(zip(filenames)))    
+        pool.starmap(_download_file_mp, list(zip(filenames)))
     end = time.perf_counter() - start
 
     print(f'Extracted {len(filenames)} files in {end} seconds')
