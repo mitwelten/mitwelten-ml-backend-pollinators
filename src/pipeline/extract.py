@@ -166,3 +166,27 @@ def download_files(client: object, bucket_name: str, filenames: list, n_threads:
     end = time.perf_counter() - start
 
     print(f'Extracted {len(filenames)} files in {end} seconds')
+
+
+@task(
+    name='Build FS mount path',
+    description='Builds a list of paths which point to local filesystem mount.'
+)
+def build_mount_paths(data: pd.DataFrame, mount_path: str) -> pd.DataFrame:
+    """
+    Transforms the column object_name to make s3 files accessible via mounted filesystem.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        checkpoint dataframe
+
+    mount_path : str
+        path where s3 filesystem is mounted
+
+    Returns
+    -------
+    pd.DataFrame
+        checkpoint dataframe with transformed object name
+    """
+    return data['object_name'].apply(lambda x: os.path.join(mount_path, x))

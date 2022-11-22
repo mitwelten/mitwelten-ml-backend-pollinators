@@ -6,7 +6,11 @@ import yaml
 from prefect import flow
 
 from src.pipeline.clients import get_db_client, get_minio_client
-from src.pipeline.extract import download_files, get_checkpoint
+from src.pipeline.extract import (
+    download_files, 
+    get_checkpoint,
+    build_mount_paths
+)
 from src.pipeline.load import (
     db_insert_flower_predictions,
     db_insert_image_results,
@@ -27,6 +31,7 @@ def etl_flow(
     MODEL_CONFIG_PATH="model_config.json",
     IS_TEST=False,
     MULTI_RESULTS_FOR_IMAGE=False,
+    USE_FS_MOUNT=False
 ):
 
     # get checkpoint from SQL before loading next
@@ -41,10 +46,9 @@ def etl_flow(
     with open(MODEL_CONFIG_PATH, "r") as json_file:
         model_config = json.load(json_file)
 
-    # --------------------------------
+    # -----------------------------------------------
     # Extract
-    # --------------------------------
-
+    # -----------------------------------------------
     # Extract objects to be processed
     df_ckp = get_checkpoint(
         conn=conn,
@@ -54,20 +58,33 @@ def etl_flow(
 
     print(f"Processing {df_ckp.shape[0]} datapoints.")
 
-    download_files(
-        client=minio_client,
-        bucket_name=config["MINIO_BUCKET_NAME"],
-        filenames=df_ckp["object_name"].to_list(),
-        n_threads=8,
-    )
-    # --------------------------------
+    if USE_FS_MOUNT:
+        # transforms column object_name to show the exact name of the object 
+        # in the mounted filesystem 
+        df_ckp = build_mount_paths(
+            data=df_ckp,
+            mount_path=config["FS_MOUNT_PATH"],
+        )
+    else:
+        # downloads file from s3
+        download_files(
+            client=minio_client,
+            bucket_name=config["MINIO_BUCKET_NAME"],
+            filenames=df_ckp["object_name"].to_list(),
+            n_threads=8,
+        )
+    # -----------------------------------------------
     # Transform and Load
-    # --------------------------------
+    # -----------------------------------------------
     # Inserts model config if not exists
-    db_insert_model_config(conn=conn, model_config=model_config)
+    db_insert_model_config(
+        conn=conn, 
+        model_config=model_config
+    )
 
     flower_predictions, pollinator_predictions = model_predict(
-        data=df_ckp, cfg=model_config
+        data=df_ckp, 
+        cfg=model_config
     )
 
     # Insert image results and get back result_ids
@@ -112,6 +129,7 @@ def etl_flow(
     else:
         print("No Flowers or Pollinators predicted")
 
+    # close db connection
     conn.close()
 
 

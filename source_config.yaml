@@ -11,3 +11,6 @@ MINIO_HOST: "host:1234"
 MINIO_ACCESS_KEY: "test"
 MINIO_SECRET_KEY: "secret"
 MINIO_SECURE: false
+
+# local mounted FS
+FS_MOUNT_PATH: "../"
