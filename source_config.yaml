@@ -4,6 +4,7 @@ POSTGRES_PASSWORD: "password"
 DB_HOST: "host"
 DB_PORT: 1234
 DB_NAME: "db_name"
+DB_SCHEMA: "prod"
 
 # Minio
 MINIO_BUCKET_NAME: "test"
