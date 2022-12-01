@@ -26,10 +26,10 @@ from src.pipeline.transform import (
 
 @flow(name="flower_pollinator_pipeline")
 def etl_flow(
-    BATCHSIZE=256,
-    CONFIG_PATH="source_config.yaml",
+    BATCHSIZE=16,
+    CONFIG_PATH="test_config.yaml",
     MODEL_CONFIG_PATH="model_config.json",
-    IS_TEST=False,
+    IS_TEST=True,
     MULTI_RESULTS_FOR_IMAGE=False,
     USE_FS_MOUNT=False
 ):
@@ -110,7 +110,7 @@ def etl_flow(
         flower_predictions = process_flower_predictions(
             flower_predictions=flower_predictions,
             result_ids=df_ckp,
-            model_config=model_config,
+            model_config=model_config
         )
         flower_ids = db_insert_flower_predictions(conn=conn, data=flower_predictions)
         # Append IDs to flower predictions
@@ -124,6 +124,7 @@ def etl_flow(
             pollinator_predictions = process_pollinator_predictions(
                 pollinator_predictions=pollinator_predictions,
                 flower_predictions=flower_predictions,
+                model_config=model_config
             )
             db_insert_pollinator_predictions(conn=conn, data=pollinator_predictions)
     else:

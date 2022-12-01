@@ -190,18 +190,12 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
     flower_predictions['x1'] = flower_predictions['flower_box'].apply(lambda x: x[2]).astype(int)
     flower_predictions['y1'] = flower_predictions['flower_box'].apply(lambda x: x[3]).astype(int)
     
-    # add box margin relative to width/heigth
-    flower_predictions['x0'] = flower_predictions['x0'] - box_margin
-    flower_predictions['y0'] = flower_predictions['y0'] - box_margin
-    flower_predictions['x1'] = flower_predictions['x1'] + box_margin
-    flower_predictions['y1'] = flower_predictions['y1'] + box_margin
-    
     flower_predictions = flower_predictions.drop('flower_box', axis=1)
 
     return flower_predictions
 
 @task(name='Process pollinator predictions')
-def process_pollinator_predictions(pollinator_predictions: dict, flower_predictions: pd.DataFrame) -> pd.DataFrame:
+def process_pollinator_predictions(pollinator_predictions: dict, flower_predictions: pd.DataFrame, model_config: dict = None) -> pd.DataFrame:
     """
     Processes pollinator predictions. Adds relevant columsn for DB ingestion and transforms the bbox outputs given the
     the bbox outputs from flower_predictions.
@@ -214,11 +208,24 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
     flower_predictions : pd.DataFrame
         Pre-processed flower predictions model output
 
+    model_config: dict
+        Relevant margin which was used to crop the flower for further
+        prediction of pollinators (located in model_config.json)
+
     Returns
     -------
     pd.DataFrame
         processed pollinator predictions ready for DB ingestion.
     """
+    # get flower margin for the correct offset of the pollinator box
+    # add box margin relative to width/heigth, which ensures the correct bbox for all 
+    # pollinators as they are relative to the flower bbox + margin
+    box_margin = model_config['flower']['margin']
+    flower_predictions['x0'] = flower_predictions['x0'] - box_margin
+    flower_predictions['y0'] = flower_predictions['y0'] - box_margin
+    flower_predictions['x1'] = flower_predictions['x1'] + box_margin
+    flower_predictions['y1'] = flower_predictions['y1'] + box_margin
+
     pollinator_predictions = pd.DataFrame.from_records(pollinator_predictions)
 
     # Join with DB data
@@ -258,18 +265,3 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
     )
 
     return pollinator_predictions
-
-
-if __name__ == '__main__':
-    
-    with open('model_config.yaml', 'rb') as yaml_file:
-        model_config = yaml.load(yaml_file, Loader=yaml.FullLoader)
-
-    df = pd.read_csv('synthetic_table.csv')
-    available_files = os.listdir('/home/simon/work/repo/pollinator-ml-backend/0344-6782/2021-06-21/08')
-    available_files = [os.path.join('0344-6782/2021-06-21/08', f) for f in available_files]
-    res = df.loc[df['object_name'].isin(available_files)]
-
-    flower, pollinators = model_predict(data=res.iloc[:20],  cfg=model_config)
-    print(10*'--')
-    print(pollinators)
