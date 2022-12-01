@@ -32,7 +32,7 @@ def get_db_client(config_path: str) -> object:
         # Perform simple query to check connection
         try:
             cursor.execute(
-                """SELECT * FROM files_image LIMIT 1"""
+                """SELECT 1"""
             )
         except ConnectionError:
             raise ConnectionError('Could not connect to DB')
