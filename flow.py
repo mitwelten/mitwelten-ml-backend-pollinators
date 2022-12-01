@@ -26,10 +26,10 @@ from src.pipeline.transform import (
 
 @flow(name="flower_pollinator_pipeline")
 def etl_flow(
-    BATCHSIZE=16,
-    CONFIG_PATH="test_config.yaml",
+    BATCHSIZE=64,
+    CONFIG_PATH="source_config.yaml",
     MODEL_CONFIG_PATH="model_config.json",
-    IS_TEST=True,
+    IS_TEST=False,
     MULTI_RESULTS_FOR_IMAGE=False,
     USE_FS_MOUNT=False
 ):
@@ -112,6 +112,8 @@ def etl_flow(
             result_ids=df_ckp,
             model_config=model_config
         )
+        if IS_TEST:
+            flower_predictions.to_csv('flower_predictions.csv', index=False)
         flower_ids = db_insert_flower_predictions(conn=conn, data=flower_predictions)
         # Append IDs to flower predictions
         flower_predictions = pd.concat(
@@ -126,6 +128,9 @@ def etl_flow(
                 flower_predictions=flower_predictions,
                 model_config=model_config
             )
+            if IS_TEST:
+                pollinator_predictions.to_csv('pollinator_predictions.csv', index=False)
+
             db_insert_pollinator_predictions(conn=conn, data=pollinator_predictions)
     else:
         print("No Flowers or Pollinators predicted")
