@@ -92,12 +92,31 @@ source env/bin/activate
 env\Scripts\activate
 ```
 
+Upgrade pip
+```bash
+pip install --upgrade pip
+pip --version
+```
+
+It should be the latest version of pip installed.
+
+
 Install pytorch according to official instructions: https://pytorch.org/get-started/locally/
+
+To check if pytorch was successfully installed and has access to GPU (in Python shell):
+```python
+import torch
+torch.cuda.is_available()
+>>> True # GPU is available
+```
 
 Install project specific packages:
 ```bash
 python pip install -r requirements.txt
 ```
+
+
+
 
 
 ## Prefect 2 Deployment
