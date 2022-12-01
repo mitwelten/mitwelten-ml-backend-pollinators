@@ -13,5 +13,5 @@ if __name__ == '__main__':
             'Memory': [device.total_memory / (1000 * 1000)],
             'Multi Processor Count': [device.multi_processor_count]
         })
-        print(df.T.to_markdown())
+        print(df.to_markdown())
         
