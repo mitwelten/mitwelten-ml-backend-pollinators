@@ -1,7 +1,3 @@
-"""
-This python file includes all task regarding to loading the data from the predictions
-to the database and updating all relevant columns with processed information
-"""
 import json
 import pandas as pd
 import numpy
@@ -11,6 +7,8 @@ import psycopg2
 from psycopg2.extensions import register_adapter, AsIs
 
 from prefect import task
+
+from .clients import edit_schema
 
 
 # Register Adapter function for data ingstinos
@@ -33,7 +31,8 @@ register_adapter(numpy.int32, addapt_numpy_int32)
 register_adapter(numpy.float32, addapt_numpy_float32)
 
 
-def is_model_config_up(conn: object, model_config: dict) -> bool:
+
+def is_model_config_up(conn: object, model_config: dict, db_schema: str = None) -> bool:
     """Checks if model config was already uploaded to database.
 
     Parameters
@@ -43,18 +42,23 @@ def is_model_config_up(conn: object, model_config: dict) -> bool:
 
     model_config : dict
         model configurations
+    
+    db_schema: str, optional
+        defines the database schema to use, default None
 
     Returns
     -------
     bool
         Returns True if the configurations is already up else False
     """
+    db_schema = edit_schema(db_schema=db_schema, n=1)
+
     try:
         with conn.cursor() as cursor:        
             cursor.execute(
             """
-            SELECT configuration FROM pollinator_inference_config
-            """
+            SELECT configuration FROM {}pollinator_inference_config
+            """.format(*db_schema)
             )
             all_configs = cursor.fetchall()
             if len(all_configs) > 0:
@@ -68,7 +72,7 @@ def is_model_config_up(conn: object, model_config: dict) -> bool:
 
 
 @task(name='Insert model_config')
-def db_insert_model_config(conn: object, model_config: dict):
+def db_insert_model_config(conn: object, model_config: dict, db_schema: str = None):
     """Inserts model config into db
 
     Parameters
@@ -78,17 +82,22 @@ def db_insert_model_config(conn: object, model_config: dict):
 
     model_config : dict
         model configurations
+    
+    db_schema: str, optional
+        defines the database schema to use, default None
     """ 
-    if not is_model_config_up(conn=conn, model_config=model_config):
+    db_schema = edit_schema(db_schema=db_schema, n=1)
+
+    if not is_model_config_up(conn=conn, model_config=model_config, db_schema=db_schema[0]):
         # upload current model config to DB as json
         model_config_json = json.dumps(model_config)
         try:    
             with conn.cursor() as cursor:
                 cursor.execute(
-                    f"""
-                    INSERT INTO pollinator_inference_config (config_id, configuration)
+                    """
+                    INSERT INTO {}pollinator_inference_config (config_id, configuration)
                     VALUES (%s, %s)
-                    """,
+                    """.format(*db_schema),
                     (model_config['config_id'], model_config_json)
                 )
         except Exception:
@@ -100,7 +109,7 @@ def db_insert_model_config(conn: object, model_config: dict):
 
 
 @task(name='Insert image_results')
-def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict, allow_multiple_results: bool = True):
+def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict, allow_multiple_results: bool = True, db_schema: str = None):
     """Adds processed data to image_results. Insert statement looks duplicated values during insertion.
 
     Parameters
@@ -118,14 +127,21 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
         if true then allows multiple predictions for one image, else
         the program will throw an error if theres an existig prediction for an image
 
+    db_schema: str, optional
+        defines the database schema to use, default None
+
     Returns
     ---------
     result_ids: list
         Resulting auto generated result_id
     """
+    db_schema = edit_schema(db_schema=db_schema, n=2)
+    
+    # Prpare data
     config_id = model_config['config_id']
     data['config_id'] = config_id
     records = data[['file_id', 'config_id']].to_records(index=False)
+
     results = []
     if not allow_multiple_results:    
         try:    
@@ -135,14 +151,14 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                     config_id = record[1]
                     cursor.execute(
                         """
-                        INSERT INTO image_results (file_id, config_id)
+                        INSERT INTO {}image_results (file_id, config_id)
                         SELECT %s, %s
                         WHERE NOT EXISTS (
-                            SELECT file_id, config_id FROM image_results 
+                            SELECT file_id, config_id FROM {}image_results 
                             WHERE file_id = %s AND config_id = %s
                         )
                         RETURNING result_id
-                        """,
+                        """.format(*db_schema),
                         (file_id, config_id, file_id, config_id)
                     )
                     result = cursor.fetchone()[0]
@@ -159,10 +175,10 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                     config_id = record[1]
                     cursor.execute(
                         """
-                        INSERT INTO image_results (file_id, config_id)
+                        INSERT INTO {}image_results (file_id, config_id)
                         VALUES (%s, %s)
                         RETURNING result_id
-                        """,
+                        """.format(*db_schema),
                         (file_id, config_id)
                     )
                     result = cursor.fetchone()[0]
@@ -176,7 +192,7 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
 
 
 @task(name='Get Image Results')
-def db_get_image_results(conn: object) -> pd.DataFrame:
+def db_get_image_results(conn: object, db_schema: str = None) -> pd.DataFrame:
     """Returns table of current image results
 
     Parameters
@@ -184,20 +200,25 @@ def db_get_image_results(conn: object) -> pd.DataFrame:
     conn : object
         psycopg db connector object.
 
+    db_schema: str, optional
+        defines the database schema to use, default None
+
     Returns
     -------
     pd.DataFrame
         DataFrame with all image_results
-    """    
+    """
+    db_schema = edit_schema(db_schema=db_schema, n=6)
+
     try:    
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT files_image.object_name, image_results.result_id 
-                FROM image_results
-                LEFT JOIN files_image 
-                ON files_image.file_id = image_results.file_id   
-                """,
+                SELECT {}files_image.object_name, {}image_results.result_id 
+                FROM {}image_results
+                LEFT JOIN {}files_image 
+                ON {}files_image.file_id = {}image_results.file_id   
+                """.format(*db_schema),
             )
             data = cursor.fetchall()
     except Exception:
@@ -209,7 +230,7 @@ def db_get_image_results(conn: object) -> pd.DataFrame:
     return pd.DataFrame.from_records(data=data, columns=colnames)
 
 @task(name='Insert flower predictions into table flowers')
-def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
+def db_insert_flower_predictions(conn: object, data: pd.DataFrame, db_schema: str = None):
     """Inserts flower predictions to flower table.
 
     Parameters
@@ -225,6 +246,8 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
     flower_ids
         auto incremented flower ids from postgres
     """  
+    db_schema = edit_schema(db_schema=db_schema, n=1)
+
     records = data[[
         'result_id', 'flower_name', 'flower_score',
         'x0', 'y0', 'x1', 'y1']].to_records(index=False)
@@ -234,10 +257,10 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
             for record in tqdm(records):  
                 cursor.execute(
                     """
-                    INSERT INTO flowers (result_id, class, confidence, x0, y0, x1, y1)
+                    INSERT INTO {}flowers (result_id, class, confidence, x0, y0, x1, y1)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING flower_id
-                    """,
+                    """.format(*db_schema),
                     record
                 )
                 flower_ids.append(cursor.fetchone()[0])
@@ -249,7 +272,7 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame):
     return flower_ids  
 
 @task(name='Insert pollinator predictions into table pollinators')
-def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame):
+def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame, db_schema: str = None):
     """Inserts data for pollinator predictions
 
     Parameters
@@ -259,7 +282,12 @@ def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame):
 
     data : pd.DataFrame
         Pre-processed data ready for insertion.
+
+    db_schema: str, optional
+        defines the database schema to use, default None
     """    
+    db_schema = edit_schema(db_schema=db_schema, n=1)
+
     records = data[[
         'result_id', 'flower_id', 
         'pollinator_names', 'pollinator_scores',
@@ -269,9 +297,9 @@ def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame):
             for record in tqdm(records):  
                 cursor.execute(
                     """
-                    INSERT INTO pollinators (result_id, flower_id, class, confidence, x0, y0, x1, y1)
+                    INSERT INTO {}pollinators (result_id, flower_id, class, confidence, x0, y0, x1, y1)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
+                    """.format(*db_schema),
                     record
                 )
     except Exception:

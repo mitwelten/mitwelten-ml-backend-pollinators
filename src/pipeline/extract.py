@@ -10,7 +10,8 @@ import psycopg2
 from prefect import task
 
 from multiprocessing.pool import ThreadPool as Pool
-from .clients import get_db_client
+from .clients import get_db_client, edit_schema
+
 
 
 @task(
@@ -18,7 +19,7 @@ from .clients import get_db_client
     retries=10, 
     retry_delay_seconds=120, # overall 10 * 120s = 20 min retrying
 )
-def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) -> pd.DataFrame:
+def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, db_schema: str = None) -> pd.DataFrame:
     """
     Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given 
     model configuration.
@@ -34,33 +35,37 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str) 
     model_config_id : str
         model configuration ID.
 
+    db_schema: str, optional
+        defines the database schema to use, default None
+
     Returns
     -------
     pd.DataFrame
         dataframe with the current objects for this iteration
     """
-
     if '\n' in model_config_id:
         model_config_id = model_config_id.replace('\n', '')
     print('Current Model Config ID:', model_config_id)
+    
+    db_schema = edit_schema(db_schema=db_schema, n=11)
 
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                f"""
-            SELECT DISTINCT ON (files_image.file_id)
-                files_image.file_id, files_image.object_name, 
-                image_results.result_id, image_results.config_id 
-            FROM image_results
-            RIGHT JOIN files_image 
-            ON image_results.file_id = files_image.file_id
-            WHERE files_image.file_id NOT IN (
-                SELECT file_id
-                FROM image_results
-                WHERE config_id = %s
-            )
-            LIMIT %s
-            """,
+                """
+                SELECT DISTINCT ON ({}files_image.file_id)
+                    {}files_image.file_id, {}files_image.object_name, 
+                    {}image_results.result_id, {}image_results.config_id 
+                FROM {}image_results
+                RIGHT JOIN {}files_image 
+                ON {}image_results.file_id = {}files_image.file_id
+                WHERE {}files_image.file_id NOT IN (
+                    SELECT file_id
+                    FROM {}image_results
+                    WHERE config_id = %s
+                )
+                LIMIT %s
+                """.format(*db_schema),
                 (model_config_id, request_batch_size)
             )
             data = cursor.fetchall()

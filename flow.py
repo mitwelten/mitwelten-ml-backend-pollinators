@@ -54,6 +54,7 @@ def etl_flow(
         conn=conn,
         request_batch_size=BATCHSIZE,
         model_config_id=model_config["config_id"],
+        db_schema=config['DB_SCHEMA']
     )
 
     print(f"Processing {df_ckp.shape[0]} datapoints.")
@@ -79,7 +80,8 @@ def etl_flow(
     # Inserts model config if not exists
     db_insert_model_config(
         conn=conn, 
-        model_config=model_config
+        model_config=model_config,
+        db_schema=config['DB_SCHEMA']
     )
 
     flower_predictions, pollinator_predictions = model_predict(
@@ -93,13 +95,14 @@ def etl_flow(
         data=df_ckp,
         model_config=model_config,
         allow_multiple_results=MULTI_RESULTS_FOR_IMAGE,
+        db_schema=config['DB_SCHEMA']
     )
     df_ckp["result_id"] = result_ids
 
     if IS_TEST:
         df_ckp.to_csv("checkpoint_df.csv", index=False)
         # Post-process flower predictions output
-        # write results to json
+        # write results to json if flow run is for test purpose
         with open("flower_predictions.json", "w") as json_file:
             json.dump(flower_predictions, json_file)
         with open("pollinator_predictions.json", "w") as json_file:
@@ -114,7 +117,12 @@ def etl_flow(
         )
         if IS_TEST:
             flower_predictions.to_csv('flower_predictions.csv', index=False)
-        flower_ids = db_insert_flower_predictions(conn=conn, data=flower_predictions)
+
+        flower_ids = db_insert_flower_predictions(
+            conn=conn, 
+            data=flower_predictions,
+            db_schema=config['DB_SCHEMA']
+        )
         # Append IDs to flower predictions
         flower_predictions = pd.concat(
             [flower_predictions, pd.Series(flower_ids)], axis=1
@@ -131,7 +139,11 @@ def etl_flow(
             if IS_TEST:
                 pollinator_predictions.to_csv('pollinator_predictions.csv', index=False)
 
-            db_insert_pollinator_predictions(conn=conn, data=pollinator_predictions)
+            db_insert_pollinator_predictions(
+                conn=conn, 
+                data=pollinator_predictions,
+                db_schema=config['DB_SCHEMA']
+            )
     else:
         print("No Flowers or Pollinators predicted")
 
