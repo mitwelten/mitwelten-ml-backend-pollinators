@@ -111,10 +111,14 @@ Script to check if pytorch was successfully installed and has access to GPU:
 python ./src/scripts/check_torch_cuda.py
 ```
 
+## Download models
 
+The model weigths are a requirement. If the repo was built with Docker the model weights were installed automatically. Check folder `./src/pipeline/Pollinatordetection/models` if the weights are present.
 
-
-
+Download models with this script (needs `gdown` to be installed)
+```python
+python ./src/scripts/download_models.py
+```
 
 
 ## Prefect 2 Deployment
