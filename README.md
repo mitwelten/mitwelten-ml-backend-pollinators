@@ -33,8 +33,15 @@ docker build . --file Dockerfile --tag pollinator-ml-backend-image
 
 Start container
 ```bash
-docker run -it -v $PWD:/root/ --name pollinator-ml-backend --gpus all -p 4200:4200 pollinator-ml-backend-image
+docker run \
+    -it \
+    -v $PWD:/root/ \
+    --name pollinator-ml-backend \
+    --gpus all \
+    -p 4200:4200 \
+    pollinator-ml-backend-image
 ```
+**Note:** Dependnig on your system sudo privilegues are required. If filesystem mount is chosen as flow parameter, than do not forget to add it as additional Docker volume `-v /mount_path/:/mount_path/`
 
 Inside Container CLI check CUDA version
 ```bash
@@ -61,6 +68,10 @@ The output should look like this:
 |=============================================================================|
 |  No running processes found                                                 |
 +-----------------------------------------------------------------------------+
+```
+Check CUDA functionalities with Pytorch:
+```bash
+python ./src/scripts/check_torch_cuda.py
 ```
 
 ### Docker setup CPU only
@@ -135,7 +146,7 @@ docker exec -it pollinator-ml-backend bash
 
 Create deployment file with prefect
 ```bash
-prefect deployment build flow_test:etl_flow -n pollinator -q pollinator-queue
+prefect deployment build flow:etl_flow -n pollinator -q pollinator-queue
 ```
 More information and examples on [prefect 2 deployments](https://docs.prefect.io/concepts/deployments/)
 
@@ -148,7 +159,7 @@ prefect deployment apply etl_flow-deployment.yaml
 ## Run Locally 
 Within container: 
 
-Start user interface ()
+Start user interface (prefect orion)
 ```bash
 prefect orion start --host 0.0.0.0
 ```
@@ -171,3 +182,5 @@ Everything should be controllable by the orion UI, where schedules and jobs can 
 https://github.com/WullT/Pollinatordetection
 
 https://github.com/ultralytics/yolov5
+
+https://docs.prefect.io/
