@@ -42,7 +42,9 @@ def etl_flow(
     # get checkpoint from SQL before loading next
     # Load Configurations and Init clients
     conn = get_db_client(config_path=CONFIG_PATH)
-    minio_client = get_minio_client(config_path=CONFIG_PATH)
+
+    if not USE_FS_MOUNT:
+        minio_client = get_minio_client(config_path=CONFIG_PATH)
 
     # Load configs
     with open(CONFIG_PATH, "rb") as yaml_file:
