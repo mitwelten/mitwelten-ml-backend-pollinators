@@ -83,7 +83,12 @@ docker build . --file Dockerfile --tag pollinator-ml-backend-image
 
 Start container
 ```bash
-docker run -it -v $PWD:/root/ -p 4200:4200 --name pollinator-ml-backend pollinator-ml-backend-image
+docker run \
+    -it \
+    -v $PWD:/root/ \
+    -p 4200:4200 \
+    --name pollinator-ml-backend \
+    pollinator-ml-backend-image
 ```
 
 ### Manual setup with python pip
