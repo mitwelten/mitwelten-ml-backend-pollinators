@@ -168,6 +168,7 @@ Start user interface (prefect orion)
 ```bash
 prefect orion start --host 0.0.0.0
 ```
+**Note:** In my tests I ran the following two components with separate detached terminals i.e. screen (linux), one for the orion interface and one for the queue.
 
 Start working queue
 ```bash
