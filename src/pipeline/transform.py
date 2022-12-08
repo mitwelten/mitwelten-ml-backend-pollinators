@@ -4,6 +4,7 @@ import yaml
 
 import pandas as pd
 from PIL import Image
+import PIL
 from tqdm import tqdm
 
 from prefect import task
@@ -100,9 +101,15 @@ def model_predict(data: pd.DataFrame, cfg: dict):
             try:
                 img = Image.open(filename)
                 original_width, original_height = img.size
+            except Exception as e:
+                print(e(f'Not able to load image {filename}'))
+                pbar.update(1)
+                continue
+            try:
                 flower_model.predict(img)
             except Exception as e:
-                print(Exception(f'Could not do inference for {filename}'))
+                print(e(f'Could not do inference for {filename}'))
+                pbar.update(1)
                 continue
             
             flower_crops = flower_model.get_crops()
