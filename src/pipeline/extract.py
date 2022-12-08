@@ -188,4 +188,7 @@ def build_mount_paths(data: pd.DataFrame, mount_path: str) -> pd.DataFrame:
     pd.DataFrame
         checkpoint dataframe with transformed object name
     """
-    return data['object_name'].apply(lambda x: os.path.join(mount_path, x))
+    _join_mount_paths = lambda x: os.path.join(mount_path, x)
+    data['object_name'] = data['object_name'].apply(_join_mount_paths)
+    
+    return data
