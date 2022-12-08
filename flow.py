@@ -3,7 +3,9 @@ import os
 
 import pandas as pd
 import yaml
+
 from prefect import flow
+from prefect.states import Cancelled
 
 from src.pipeline.clients import get_db_client, get_minio_client
 from src.pipeline.extract import (
@@ -24,7 +26,10 @@ from src.pipeline.transform import (
 )
 
 
-@flow(name="flower_pollinator_pipeline")
+@flow(
+    name="flower_pollinator_pipeline",
+    log_prints=True
+)
 def etl_flow(
     BATCHSIZE=64,
     CONFIG_PATH="source_config.yaml",
@@ -56,8 +61,11 @@ def etl_flow(
         model_config_id=model_config["config_id"],
         db_schema=config['DB_SCHEMA']
     )
-
     print(f"Processing {df_ckp.shape[0]} datapoints.")
+
+    # interrupt flow run if there is no new data -> state cancelled
+    if df_ckp.shape[0] == 0:
+        return Cancelled()
 
     if USE_FS_MOUNT:
         # transforms column object_name to show the exact name of the object 

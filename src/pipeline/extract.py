@@ -16,8 +16,6 @@ from .clients import get_db_client, edit_schema
 
 @task(
     name='Get checkpoint of unprocessed images',
-    retries=10, 
-    retry_delay_seconds=120, # overall 10 * 120s = 20 min retrying
 )
 def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, db_schema: str = None) -> pd.DataFrame:
     """
@@ -72,10 +70,6 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
             colnames = [desc[0] for desc in cursor.description]
     except Exception:
         raise Exception('Could not retrieve data from DB.')
-
-    # interrupt run if there is no new data
-    assert len(
-        data) > 0, 'No unprocessed datapoints available for this configuration. Stopping procedure.'
 
     return pd.DataFrame.from_records(
         data=data,
