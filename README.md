@@ -1,6 +1,8 @@
 
 ![MIT License](https://img.shields.io/badge/Organization-Mitwelten-green)
 
+![](./doc/assets/etl_flow_pollinator.png)
+
 
 # Mitwelten: pollinator-ml-backend
 
