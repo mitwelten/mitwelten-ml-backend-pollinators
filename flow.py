@@ -38,6 +38,35 @@ def etl_flow(
     MULTI_RESULTS_FOR_IMAGE=False,
     USE_FS_MOUNT=False
 ):
+    """
+    This function represents a flow implemented with prefect. A flow includes multiple smaller prefect task.
+    All files cerated durnig workflow do not persist.
+
+    Parameters
+    ----------
+    BATCHSIZE : int, optional
+        batch size which shall be processed at a time, by default 64
+
+    CONFIG_PATH : str, optional
+        path to the configuration file (yaml-file), by default "source_config.yaml"
+
+    MODEL_CONFIG_PATH : str, optional
+        path to model configuration file, which will be uploaded to the db (JSON), by default "model_config.json"
+
+    IS_TEST : bool, optional
+        flag indicating wether the flow run is a test case or not, by default False
+
+    MULTI_RESULTS_FOR_IMAGE : bool, optional
+        if True allows multiple results per image with equal configuration, else it will through an error
+        by default False
+
+    USE_FS_MOUNT : bool, optional
+        if true uses local mounted file system instead of minio bucket to load data, by default False
+
+    Returns
+    -------
+    None
+    """
 
     # get checkpoint from SQL before loading next
     # Load Configurations and Init clients
