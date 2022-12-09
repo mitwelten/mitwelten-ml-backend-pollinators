@@ -45,24 +45,34 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
         model_config_id = model_config_id.replace('\n', '')
     print('Current Model Config ID:', model_config_id)
     
-    db_schema = edit_schema(db_schema=db_schema, n=11)
+    db_schema = edit_schema(db_schema=db_schema, n=6)
 
     try:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT DISTINCT ON ({}files_image.file_id)
-                    {}files_image.file_id, {}files_image.object_name, 
-                    {}image_results.result_id, {}image_results.config_id 
-                FROM {}image_results
-                RIGHT JOIN {}files_image 
-                ON {}image_results.file_id = {}files_image.file_id
-                WHERE {}files_image.file_id NOT IN (
-                    SELECT file_id
-                    FROM {}image_results
-                    WHERE config_id = %s
-                )
-                LIMIT %s
+                SELECT
+                    DISTINCT ON ({}files_image.file_id) 
+                    {}files_image.file_id,
+                    {}files_image.object_name,
+                    tmp_table.result_id,
+                    tmp_table.config_id
+                FROM
+                    {}files_image
+                    LEFT JOIN (
+                        SELECT
+                            result_id,
+                            config_id,
+                            file_id
+                        FROM
+                            {}image_results
+                        WHERE
+                            config_id = %s
+                    ) AS tmp_table ON tmp_table.file_id = {}files_image.file_id
+                WHERE
+                    tmp_table.config_id IS NULL
+                LIMIT
+                    %s
                 """.format(*db_schema),
                 (model_config_id, request_batch_size)
             )
