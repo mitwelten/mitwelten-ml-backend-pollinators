@@ -1,9 +1,6 @@
 
 ![MIT License](https://img.shields.io/badge/Organization-Mitwelten-green)
 
-![](./doc/assets/etl_flow_pollinator.png)
-
-
 # Mitwelten: pollinator-ml-backend
 
 This projects implements a backend infrastructure which applies an ETL pipeline for the [PollinatorDetection Model](https://github.com/WullT/Pollinatordetection). The pipeline processes data from an s3 bucket and inserts it to a SQL database.
@@ -178,7 +175,9 @@ prefect agent start --work-queue "pollinator-queue"
 ```
 Everything should be controllable by the orion UI, where schedules and jobs can be applied. The working queue is listening to the deployment and runs jobs as soon as they are scheduled.
 
+## Pipeline
 
+![](./doc/assets/etl_flow_pollinator.png)
 
 ## Authors
 
