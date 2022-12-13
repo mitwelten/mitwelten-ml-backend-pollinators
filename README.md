@@ -27,7 +27,7 @@ Requirements (according to [yolov5 instructions](https://github.com/ultralytics/
 
 Build from Dockerfile
 ```bash
-docker build . --file Dockerfile --tag pollinator-ml-backend-image
+docker build . --file app.Dockerfile --tag pollinator-ml-backend-image
 ```
 
 Start container
