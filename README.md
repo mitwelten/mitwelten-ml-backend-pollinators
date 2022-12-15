@@ -1,7 +1,7 @@
 
 ![MIT License](https://img.shields.io/badge/Organization-Mitwelten-green)
 
-# Mitwelten: pollinator-ml-backend
+# Mitwelten: mitwelten-ml-backend-pollinators
 
 This projects implements a backend infrastructure which applies an ETL pipeline for the [PollinatorDetection Model](https://github.com/WullT/Pollinatordetection). The pipeline processes data from an s3 bucket and inserts it to a SQL database.
 
