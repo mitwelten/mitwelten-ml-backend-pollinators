@@ -9,8 +9,8 @@ This projects implements a backend infrastructure which applies an ETL pipeline 
 
 Clone repo locally
 ```bash
-git clone git@github.com:mitwelten/pollinator-ml-backend.git
-cd pollinator-ml-backend
+git clone git@github.com:mitwelten/mitwelten-ml-backend-pollinators.git
+cd mitwelten-ml-backend-pollinators
 ```
 
 **Note**:
