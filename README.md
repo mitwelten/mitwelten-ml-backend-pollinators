@@ -134,7 +134,10 @@ Download models with this script (needs `gdown` to be installed)
 ```python
 python ./src/scripts/download_models.py
 ```
-
+Manual download of models in case the automatic download did not work properly:
+- https://drive.google.com/file/d/1aJqHIP2s0TH8cDBIRouM6rjC8ZF4VWjg/view?usp=share_link
+- https://drive.google.com/file/d/1PAubLPaEAHALgmo2KkEzuTOakv_AmqUu/view?usp=share_link
+- https://drive.google.com/file/d/1xHiwc5PmYGwj6AImyy2zljev_DZtuLcJ/view?usp=share_link
 
 ## Prefect 2 Deployment
 
