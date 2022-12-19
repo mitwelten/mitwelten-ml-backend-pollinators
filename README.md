@@ -1,7 +1,7 @@
 
 ![MIT License](https://img.shields.io/badge/Organization-Mitwelten-green)
 
-# Mitwelten: pollinator-ml-backend
+# Mitwelten: mitwelten-ml-backend-pollinators
 
 This projects implements a backend infrastructure which applies an ETL pipeline for the [PollinatorDetection Model](https://github.com/WullT/Pollinatordetection). The pipeline processes data from an s3 bucket and inserts it to a SQL database.
 
@@ -9,8 +9,8 @@ This projects implements a backend infrastructure which applies an ETL pipeline 
 
 Clone repo locally
 ```bash
-git clone git@github.com:mitwelten/pollinator-ml-backend.git
-cd pollinator-ml-backend
+git clone git@github.com:mitwelten/mitwelten-ml-backend-pollinators.git
+cd mitwelten-ml-backend-pollinators
 ```
 
 **Note**:
@@ -134,7 +134,10 @@ Download models with this script (needs `gdown` to be installed)
 ```python
 python ./src/scripts/download_models.py
 ```
-
+Manual download of models in case the automatic download did not work properly:
+- https://drive.google.com/file/d/1aJqHIP2s0TH8cDBIRouM6rjC8ZF4VWjg/view?usp=share_link
+- https://drive.google.com/file/d/1PAubLPaEAHALgmo2KkEzuTOakv_AmqUu/view?usp=share_link
+- https://drive.google.com/file/d/1xHiwc5PmYGwj6AImyy2zljev_DZtuLcJ/view?usp=share_link
 
 ## Prefect 2 Deployment
 
