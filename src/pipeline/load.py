@@ -306,11 +306,3 @@ def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame, db_schema
         raise Exception('Could not insert.')
     finally:
         conn.commit()
-
-
-@task
-def update_processed_data(df: pd.DataFrame, processed_ids: list, path: str) -> pd.DataFrame:
-    df.loc[df['object_name'].isin(processed_ids), 'processed'] = 1
-    df.to_csv(path_or_buf=path, index=False)
-
-    return df
