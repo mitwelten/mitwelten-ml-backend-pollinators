@@ -27,8 +27,7 @@ def etl_flow(
     CONFIG_PATH="source_config.yaml",
     MODEL_CONFIG_PATH="model_config.json",
     IS_TEST=False,
-    MULTI_RESULTS_FOR_IMAGE=False,
-    USE_FS_MOUNT=False
+    MULTI_RESULTS_FOR_IMAGE=False
 ):
     """
     This function represents a flow implemented with prefect. A flow includes multiple smaller prefect task.
@@ -151,7 +150,7 @@ def etl_flow(
             flower_predictions.to_csv('flower_predictions.csv', index=False)
 
         flower_ids = db_insert_flower_predictions(
-            conn=conn, 
+            conn=conn,
             data=flower_predictions,
             db_schema=config['DB_SCHEMA']
         )
@@ -172,7 +171,7 @@ def etl_flow(
                 pollinator_predictions.to_csv('pollinator_predictions.csv', index=False)
 
             db_insert_pollinator_predictions(
-                conn=conn, 
+                conn=conn,
                 data=pollinator_predictions,
                 db_schema=config['DB_SCHEMA']
             )

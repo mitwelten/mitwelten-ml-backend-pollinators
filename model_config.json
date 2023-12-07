@@ -33,5 +33,5 @@
         "multi_label_iou_threshold": 0.45,
         "augment": false,
         "image_size": 480
-    }   
+    }
 }

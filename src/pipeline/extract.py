@@ -15,7 +15,7 @@ from .clients import get_db_client, edit_schema
 
 def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, db_schema: str = None) -> pd.DataFrame:
     """
-    Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given 
+    Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given
     model configuration.
 
     Parameters
@@ -40,7 +40,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
     if '\n' in model_config_id:
         model_config_id = model_config_id.replace('\n', '')
     print('Current Model Config ID:', model_config_id)
-    
+
     db_schema = edit_schema(db_schema=db_schema, n=6)
 
     try:
@@ -48,7 +48,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
             cursor.execute(
                 """
                 SELECT
-                    DISTINCT ON ({}files_image.file_id) 
+                    DISTINCT ON ({}files_image.file_id)
                     {}files_image.file_id,
                     {}files_image.object_name,
                     tmp_table.result_id,
@@ -189,5 +189,5 @@ def build_mount_paths(data: pd.DataFrame, mount_path: str) -> pd.DataFrame:
     """
     _join_mount_paths = lambda x: os.path.join(mount_path, x)
     data['object_name'] = data['object_name'].apply(_join_mount_paths)
-    
+
     return data

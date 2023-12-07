@@ -29,7 +29,7 @@ def edit_schema(db_schema: str = None, n: int = 20) -> list:
         db_schema = ''
     # creates list of ['schema', 'schema']
     # 11 = amount of schema is used within query
-    db_schema = n*[db_schema] 
+    db_schema = n*[db_schema]
 
     return db_schema
 
@@ -47,7 +47,7 @@ def get_db_client(config_path: str) -> object:
     -------
     psycopg2 client
         SQL DB client
-    """ 
+    """
     with open(config_path, 'rb') as yaml_file:
         config = yaml.load(yaml_file, yaml.FullLoader)
 
@@ -60,7 +60,7 @@ def get_db_client(config_path: str) -> object:
     )
     db_schema = edit_schema(db_schema=config['DB_SCHEMA'], n=1)
 
-    with conn.cursor() as cursor:    
+    with conn.cursor() as cursor:
         # Perform simple query to check connection
         try:
             cursor.execute(
