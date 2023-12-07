@@ -147,11 +147,8 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                     cursor.execute(
                         """
                         INSERT INTO {}image_results (file_id, config_id)
-                        SELECT %s, %s
-                        WHERE NOT EXISTS (
-                            SELECT file_id, config_id FROM {}image_results
-                            WHERE file_id = %s AND config_id = %s
-                        )
+                        VALUES (%s, %s)
+                        ON CONFLICT ON unique_file_config DO NOTHING
                         RETURNING result_id
                         """.format(*db_schema),
                         (file_id, config_id, file_id, config_id)
