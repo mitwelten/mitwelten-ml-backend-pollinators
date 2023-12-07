@@ -137,6 +137,10 @@ It should be the latest version of pip installed.
 
 Install `Pytorch` according to official instructions: <https://pytorch.org/get-started/locally/>
 
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
 Script to check if pytorch was successfully installed and has access to GPU:
 
 ```bash
