@@ -3,7 +3,6 @@ import pandas as pd
 import numpy
 from tqdm import tqdm
 
-import psycopg2
 from psycopg2.extensions import register_adapter, AsIs
 
 from .clients import edit_schema

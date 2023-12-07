@@ -1,17 +1,11 @@
-import yaml
 import os
 import time
 
 import pandas as pd
 import numpy as np
 
-from minio import Minio
-import psycopg2
-
 from multiprocessing.pool import ThreadPool as Pool
-from .clients import get_db_client, edit_schema
-
-
+from .clients import edit_schema
 
 def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, db_schema: str = None) -> pd.DataFrame:
     """

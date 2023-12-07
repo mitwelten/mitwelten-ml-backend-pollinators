@@ -1,11 +1,8 @@
 import io
-import os
 import shutil
-import yaml
 
 import pandas as pd
 from PIL import Image
-import PIL
 from tqdm import tqdm
 
 if __name__ =='__main__':
