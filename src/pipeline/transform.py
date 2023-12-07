@@ -111,7 +111,9 @@ def model_predict(data: pd.DataFrame, cfg: dict, minio: object):
                 print(e(f'Could not do inference for {filename}'))
                 pbar.update(1)
                 continue
-            
+            finally:
+                img.close()
+
             flower_crops = flower_model.get_crops()
             flower_boxes = flower_model.get_boxes()
             flower_classes = flower_model.get_classes()
