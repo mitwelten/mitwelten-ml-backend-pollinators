@@ -5,11 +5,7 @@ import pandas as pd
 import yaml
 
 from src.pipeline.clients import get_db_client, get_minio_client
-from src.pipeline.extract import (
-    download_files, 
-    get_checkpoint,
-    build_mount_paths
-)
+from src.pipeline.extract import get_checkpoint
 from src.pipeline.load import (
     db_insert_flower_predictions,
     db_insert_image_results,
@@ -51,9 +47,6 @@ def etl_flow(
         if True allows multiple results per image with equal configuration, else it will through an error
         by default False
 
-    USE_FS_MOUNT : bool, optional
-        if true uses local mounted file system instead of minio bucket to load data, by default False
-
     Returns
     -------
     None
@@ -63,8 +56,10 @@ def etl_flow(
     # Load Configurations and Init clients
     conn = get_db_client(config_path=CONFIG_PATH)
 
-    if not USE_FS_MOUNT:
-        minio_client = get_minio_client(config_path=CONFIG_PATH)
+    storage = {
+        'client': get_minio_client(config_path=CONFIG_PATH),
+        'bucket_name': config["MINIO_BUCKET_NAME"]
+    }
 
     # Load configs
     with open(CONFIG_PATH, "rb") as yaml_file:
@@ -90,21 +85,6 @@ def etl_flow(
         print("No new data to process. Flow run cancelled.")
         return 1
 
-    if USE_FS_MOUNT:
-        # transforms column object_name to show the exact name of the object 
-        # in the mounted filesystem 
-        df_ckp = build_mount_paths(
-            data=df_ckp,
-            mount_path=config["FS_MOUNT_PATH"],
-        )
-    else:
-        # downloads file from s3
-        download_files(
-            client=minio_client,
-            bucket_name=config["MINIO_BUCKET_NAME"],
-            filenames=df_ckp["object_name"].to_list(),
-            n_threads=8,
-        )
     # -----------------------------------------------
     # Transform and Load
     # -----------------------------------------------
@@ -116,8 +96,9 @@ def etl_flow(
     )
 
     flower_predictions, pollinator_predictions = model_predict(
-        data=df_ckp, 
-        cfg=model_config
+        data=df_ckp,
+        cfg=model_config,
+        minio=storage
     )
 
     # Insert image results and get back result_ids

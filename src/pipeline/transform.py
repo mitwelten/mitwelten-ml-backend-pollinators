@@ -1,3 +1,4 @@
+import io
 import os
 import shutil
 import yaml
@@ -78,7 +79,7 @@ def init_models(cfg: dict):
     return flower_model, pollinator_model
 
 
-def model_predict(data: pd.DataFrame, cfg: dict):
+def model_predict(data: pd.DataFrame, cfg: dict, minio: object):
 
     flower_model, pollinator_model = init_models(cfg=cfg)
 
@@ -95,12 +96,18 @@ def model_predict(data: pd.DataFrame, cfg: dict):
             pollinator_model.reset_inference_times()
             # predict flower
             try:
-                img = Image.open(filename)
+                response = minio['client'].get_object(
+                    minio['bucket_name'], filename, filename
+                )
+                img = Image.open(io.BytesIO(response.read()))
                 original_width, original_height = img.size
             except Exception as e:
                 print(e(f'Not able to load image {filename}'))
                 pbar.update(1)
                 continue
+            finally:
+                response.close()
+                response.release_conn()
             try:
                 flower_model.predict(img)
             except Exception as e:
