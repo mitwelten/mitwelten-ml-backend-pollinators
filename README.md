@@ -14,6 +14,8 @@ git clone git@github.com:mitwelten/mitwelten-ml-backend-pollinators.git
 cd mitwelten-ml-backend-pollinators
 ```
 
+Copy the `source_config_example.yaml` to `source_config.yaml` and enter the corresponding credentials.
+
 **Note**:
 The follow-up instructions are limited to Linux OS. It is not guranteed to work with Windows (particularly nvidia-docker). In my case on Windows OS I installed the Linux subsystem for Windows (Ubuntu 22.04) and it worked fine.
 
