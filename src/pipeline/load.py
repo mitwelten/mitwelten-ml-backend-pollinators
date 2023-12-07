@@ -151,7 +151,7 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                         ON CONFLICT ON unique_file_config DO NOTHING
                         RETURNING result_id
                         """.format(*db_schema),
-                        (file_id, config_id, file_id, config_id)
+                        (file_id, config_id)
                     )
                     result = cursor.fetchone()[0]
                     results.append(result)
