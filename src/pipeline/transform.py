@@ -7,15 +7,12 @@ from PIL import Image
 import PIL
 from tqdm import tqdm
 
-from prefect import task
-
 if __name__ =='__main__':
     from Pollinatordetection import YoloModel
 else:    
     from .Pollinatordetection import YoloModel
     
 
-@task
 def dummy_transform(remove_dir):
     shutil.rmtree(path=remove_dir, ignore_errors=True)
 
@@ -81,8 +78,7 @@ def init_models(cfg: dict):
     return flower_model, pollinator_model
 
 
-@task(name='Model inference')
-def model_predict(data: pd.DataFrame, cfg: dict): 
+def model_predict(data: pd.DataFrame, cfg: dict):
 
     flower_model, pollinator_model = init_models(cfg=cfg) 
 
@@ -157,7 +153,6 @@ def model_predict(data: pd.DataFrame, cfg: dict):
 
     return flower_predictions, pollinator_predictions            
 
-@task(name='Process flower predictions')
 def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFrame, model_config: float) -> pd.DataFrame:
     """
     Post-processing of flower predictions outputet as json. 
@@ -201,7 +196,6 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
 
     return flower_predictions
 
-@task(name='Process pollinator predictions')
 def process_pollinator_predictions(pollinator_predictions: dict, flower_predictions: pd.DataFrame, model_config: dict = None) -> pd.DataFrame:
     """
     Processes pollinator predictions. Adds relevant columsn for DB ingestion and transforms the bbox outputs given the

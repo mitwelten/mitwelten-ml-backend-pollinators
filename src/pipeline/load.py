@@ -6,8 +6,6 @@ from tqdm import tqdm
 import psycopg2
 from psycopg2.extensions import register_adapter, AsIs
 
-from prefect import task
-
 from .clients import edit_schema
 
 
@@ -71,7 +69,6 @@ def is_model_config_up(conn: object, model_config: dict, db_schema: str = None) 
     return model_config in all_configs
 
 
-@task(name='Insert model_config')
 def db_insert_model_config(conn: object, model_config: dict, db_schema: str = None):
     """Inserts model config into db
 
@@ -108,7 +105,6 @@ def db_insert_model_config(conn: object, model_config: dict, db_schema: str = No
         print('Model Config alrealdy up.')
 
 
-@task(name='Insert image_results')
 def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict, allow_multiple_results: bool = True, db_schema: str = None):
     """Adds processed data to image_results. Insert statement looks duplicated values during insertion.
 
@@ -191,7 +187,6 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
     return results
 
 
-@task(name='Get Image Results')
 def db_get_image_results(conn: object, db_schema: str = None) -> pd.DataFrame:
     """Returns table of current image results
 
@@ -229,7 +224,6 @@ def db_get_image_results(conn: object, db_schema: str = None) -> pd.DataFrame:
     colnames = [desc[0] for desc in cursor.description]
     return pd.DataFrame.from_records(data=data, columns=colnames)
 
-@task(name='Insert flower predictions into table flowers')
 def db_insert_flower_predictions(conn: object, data: pd.DataFrame, db_schema: str = None):
     """Inserts flower predictions to flower table.
 
@@ -271,7 +265,6 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame, db_schema: st
     
     return flower_ids  
 
-@task(name='Insert pollinator predictions into table pollinators')
 def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame, db_schema: str = None):
     """Inserts data for pollinator predictions
 
