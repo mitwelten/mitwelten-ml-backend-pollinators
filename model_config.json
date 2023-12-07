@@ -1,7 +1,7 @@
 {
     "config_id": "CONFIG001",
     "flower": {
-        "weights_path": ".\\src\\pipeline\\Pollinatordetection\\models\\flowers_ds_v5_640_yolov5n_box_hyps_v0.pt",
+        "weights_path": "./src/pipeline/Pollinatordetection/models/flowers_ds_v5_640_yolov5n_box_hyps_v0.pt",
         "class_names": [
             "daisy",
             "wildemoere",
@@ -17,7 +17,7 @@
         "image_size": 640
     },
     "pollinator": {
-        "weights_path": ".\\src\\pipeline\\Pollinatordetection\\models\\pollinators_ds_v6_480_yolov5s_hyps_v0.pt",
+        "weights_path": "./src/pipeline/Pollinatordetection/models/pollinators_ds_v6_480_yolov5s_hyps_v0.pt",
         "class_names": [
             "honigbiene",
             "wildbiene",
