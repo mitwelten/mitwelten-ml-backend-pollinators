@@ -42,9 +42,9 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
             cursor.execute(
                 """
                 SELECT
-                    DISTINCT ON ({}files_image.file_id)
-                    {}files_image.file_id,
-                    {}files_image.object_name,
+                    DISTINCT ON (files_image.file_id)
+                    files_image.file_id,
+                    files_image.object_name,
                     tmp_table.result_id,
                     tmp_table.config_id
                 FROM
@@ -58,7 +58,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
                             {}image_results
                         WHERE
                             config_id = %s
-                    ) AS tmp_table ON tmp_table.file_id = {}files_image.file_id
+                    ) AS tmp_table ON tmp_table.file_id = files_image.file_id
                 WHERE
                     tmp_table.config_id IS NULL
                 LIMIT
