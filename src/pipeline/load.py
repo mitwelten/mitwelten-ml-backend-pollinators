@@ -148,7 +148,7 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
                         """
                         INSERT INTO {}image_results (file_id, config_id)
                         VALUES (%s, %s)
-                        ON CONFLICT ON unique_file_config DO NOTHING
+                        ON CONFLICT ON CONSTRAINT unique_file_config DO NOTHING
                         RETURNING result_id
                         """.format(*db_schema),
                         (file_id, config_id)
