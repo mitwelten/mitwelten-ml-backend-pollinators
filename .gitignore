@@ -133,3 +133,6 @@ dmypy.json
 
 # other
 *.jpg
+
+# credentials
+source_config.yaml
