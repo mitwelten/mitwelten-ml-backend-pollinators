@@ -55,14 +55,14 @@ def etl_flow(
     # Load Configurations and Init clients
     conn = get_db_client(config_path=CONFIG_PATH)
 
+    # Load configs
+    with open(CONFIG_PATH, "rb") as yaml_file:
+        config = yaml.load(yaml_file, yaml.FullLoader)
+
     storage = {
         'client': get_minio_client(config_path=CONFIG_PATH),
         'bucket_name': config["MINIO_BUCKET_NAME"]
     }
-
-    # Load configs
-    with open(CONFIG_PATH, "rb") as yaml_file:
-        config = yaml.load(yaml_file, yaml.FullLoader)
 
     with open(MODEL_CONFIG_PATH, "r") as json_file:
         model_config = json.load(json_file)
