@@ -89,11 +89,15 @@ def etl_flow(
     # Transform and Load
     # -----------------------------------------------
     # Inserts model config if not exists
-    db_insert_model_config(
-        conn=conn, 
-        model_config=model_config,
-        db_schema=config['DB_SCHEMA']
-    )
+    try:
+        db_insert_model_config(
+            conn=conn,
+            model_config=model_config,
+            db_schema=config['DB_SCHEMA']
+        )
+    except Exception as e:
+        print(e)
+        print("Model config already exists in DB.")
 
     flower_predictions, pollinator_predictions = model_predict(
         data=df_ckp,
