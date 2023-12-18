@@ -1,25 +1,15 @@
-import yaml
 import os
 import time
 
 import pandas as pd
 import numpy as np
 
-from minio import Minio
-import psycopg2
-from prefect import task
-
 from multiprocessing.pool import ThreadPool as Pool
-from .clients import get_db_client, edit_schema
+from .clients import edit_schema
 
-
-
-@task(
-    name='Get checkpoint of unprocessed images',
-)
 def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, db_schema: str = None) -> pd.DataFrame:
     """
-    Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given 
+    Returns checkpoint for data processing. Queries data from db files_image table which not have been processed by given
     model configuration.
 
     Parameters
@@ -44,7 +34,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
     if '\n' in model_config_id:
         model_config_id = model_config_id.replace('\n', '')
     print('Current Model Config ID:', model_config_id)
-    
+
     db_schema = edit_schema(db_schema=db_schema, n=6)
 
     try:
@@ -52,9 +42,9 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
             cursor.execute(
                 """
                 SELECT
-                    DISTINCT ON ({}files_image.file_id) 
-                    {}files_image.file_id,
-                    {}files_image.object_name,
+                    DISTINCT ON (files_image.file_id)
+                    files_image.file_id,
+                    files_image.object_name,
                     tmp_table.result_id,
                     tmp_table.config_id
                 FROM
@@ -68,7 +58,7 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
                             {}image_results
                         WHERE
                             config_id = %s
-                    ) AS tmp_table ON tmp_table.file_id = {}files_image.file_id
+                    ) AS tmp_table ON tmp_table.file_id = files_image.file_id
                 WHERE
                     tmp_table.config_id IS NULL
                 LIMIT
@@ -87,12 +77,10 @@ def get_checkpoint(conn: object, request_batch_size: int, model_config_id: str, 
     )
 
 
-@task(name='Test function which loads batch from test data')
 def load_image_batch(data: pd.DataFrame, size: int = 32):
     return data[data['processed'] == 0].iloc[:size]
 
 
-@task(name='Get object paths from s3')
 def get_object_paths(client: object, bucket_name: str, prefix: 'str | list', file_endings: list = ['.jpg', '.png']) -> list:
     """
     Extracts the path of all objects in a bucket by given prefix.
@@ -129,7 +117,6 @@ def get_object_paths(client: object, bucket_name: str, prefix: 'str | list', fil
     return object_paths
 
 
-@task(name='Download files for inference')
 def download_files(client: object, bucket_name: str, filenames: list, n_threads: int = 8):
     """
     Downloads all files given by path. Simultaneously creates similar folder structure local.
@@ -177,10 +164,6 @@ def download_files(client: object, bucket_name: str, filenames: list, n_threads:
     print(f'Extracted {len(filenames)} files in {end} seconds')
 
 
-@task(
-    name='Build FS mount path',
-    description='Builds a list of paths which point to local filesystem mount.'
-)
 def build_mount_paths(data: pd.DataFrame, mount_path: str) -> pd.DataFrame:
     """
     Transforms the column object_name to make s3 files accessible via mounted filesystem.
@@ -200,5 +183,5 @@ def build_mount_paths(data: pd.DataFrame, mount_path: str) -> pd.DataFrame:
     """
     _join_mount_paths = lambda x: os.path.join(mount_path, x)
     data['object_name'] = data['object_name'].apply(_join_mount_paths)
-    
+
     return data

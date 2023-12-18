@@ -3,10 +3,7 @@ import pandas as pd
 import numpy
 from tqdm import tqdm
 
-import psycopg2
 from psycopg2.extensions import register_adapter, AsIs
-
-from prefect import task
 
 from .clients import edit_schema
 
@@ -42,7 +39,7 @@ def is_model_config_up(conn: object, model_config: dict, db_schema: str = None) 
 
     model_config : dict
         model configurations
-    
+
     db_schema: str, optional
         defines the database schema to use, default None
 
@@ -54,7 +51,7 @@ def is_model_config_up(conn: object, model_config: dict, db_schema: str = None) 
     db_schema = edit_schema(db_schema=db_schema, n=1)
 
     try:
-        with conn.cursor() as cursor:        
+        with conn.cursor() as cursor:
             cursor.execute(
             """
             SELECT configuration FROM {}pollinator_inference_config
@@ -62,16 +59,15 @@ def is_model_config_up(conn: object, model_config: dict, db_schema: str = None) 
             )
             all_configs = cursor.fetchall()
             if len(all_configs) > 0:
-                all_configs = [element[0] for element in all_configs]  
+                all_configs = [element[0] for element in all_configs]
     except Exception:
         raise Exception('Could not request configuration')
     finally:
-        conn.commit()      
-    
+        conn.commit()
+
     return model_config in all_configs
 
 
-@task(name='Insert model_config')
 def db_insert_model_config(conn: object, model_config: dict, db_schema: str = None):
     """Inserts model config into db
 
@@ -82,16 +78,16 @@ def db_insert_model_config(conn: object, model_config: dict, db_schema: str = No
 
     model_config : dict
         model configurations
-    
+
     db_schema: str, optional
         defines the database schema to use, default None
-    """ 
+    """
     db_schema = edit_schema(db_schema=db_schema, n=1)
 
     if not is_model_config_up(conn=conn, model_config=model_config, db_schema=db_schema[0]):
         # upload current model config to DB as json
         model_config_json = json.dumps(model_config)
-        try:    
+        try:
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
@@ -108,7 +104,6 @@ def db_insert_model_config(conn: object, model_config: dict, db_schema: str = No
         print('Model Config alrealdy up.')
 
 
-@task(name='Insert image_results')
 def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict, allow_multiple_results: bool = True, db_schema: str = None):
     """Adds processed data to image_results. Insert statement looks duplicated values during insertion.
 
@@ -136,30 +131,27 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
         Resulting auto generated result_id
     """
     db_schema = edit_schema(db_schema=db_schema, n=2)
-    
+
     # Prpare data
     config_id = model_config['config_id']
     data['config_id'] = config_id
     records = data[['file_id', 'config_id']].to_records(index=False)
 
     results = []
-    if not allow_multiple_results:    
-        try:    
+    if not allow_multiple_results:
+        try:
             with conn.cursor() as cursor:
-                for record in tqdm(records):  
+                for record in tqdm(records):
                     file_id = int(record[0])
                     config_id = record[1]
                     cursor.execute(
                         """
                         INSERT INTO {}image_results (file_id, config_id)
-                        SELECT %s, %s
-                        WHERE NOT EXISTS (
-                            SELECT file_id, config_id FROM {}image_results 
-                            WHERE file_id = %s AND config_id = %s
-                        )
+                        VALUES (%s, %s)
+                        ON CONFLICT ON CONSTRAINT unique_file_config DO NOTHING
                         RETURNING result_id
                         """.format(*db_schema),
-                        (file_id, config_id, file_id, config_id)
+                        (file_id, config_id)
                     )
                     result = cursor.fetchone()[0]
                     results.append(result)
@@ -168,9 +160,9 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
         finally:
             conn.commit()
     else:
-        try:    
+        try:
             with conn.cursor() as cursor:
-                for record in tqdm(records):  
+                for record in tqdm(records):
                     file_id = int(record[0])
                     config_id = record[1]
                     cursor.execute(
@@ -187,11 +179,10 @@ def db_insert_image_results(conn: object, data: pd.DataFrame, model_config: dict
             raise Exception('Could not insert. Values might be written already to DB.')
         finally:
             conn.commit()
-        
+
     return results
 
 
-@task(name='Get Image Results')
 def db_get_image_results(conn: object, db_schema: str = None) -> pd.DataFrame:
     """Returns table of current image results
 
@@ -210,14 +201,14 @@ def db_get_image_results(conn: object, db_schema: str = None) -> pd.DataFrame:
     """
     db_schema = edit_schema(db_schema=db_schema, n=6)
 
-    try:    
+    try:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT {}files_image.object_name, {}image_results.result_id 
+                SELECT {}files_image.object_name, {}image_results.result_id
                 FROM {}image_results
-                LEFT JOIN {}files_image 
-                ON {}files_image.file_id = {}image_results.file_id   
+                LEFT JOIN {}files_image
+                ON {}files_image.file_id = {}image_results.file_id
                 """.format(*db_schema),
             )
             data = cursor.fetchall()
@@ -229,7 +220,6 @@ def db_get_image_results(conn: object, db_schema: str = None) -> pd.DataFrame:
     colnames = [desc[0] for desc in cursor.description]
     return pd.DataFrame.from_records(data=data, columns=colnames)
 
-@task(name='Insert flower predictions into table flowers')
 def db_insert_flower_predictions(conn: object, data: pd.DataFrame, db_schema: str = None):
     """Inserts flower predictions to flower table.
 
@@ -245,16 +235,16 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame, db_schema: st
     --------
     flower_ids
         auto incremented flower ids from postgres
-    """  
+    """
     db_schema = edit_schema(db_schema=db_schema, n=1)
 
     records = data[[
         'result_id', 'flower_name', 'flower_score',
         'x0', 'y0', 'x1', 'y1']].to_records(index=False)
     flower_ids = []
-    try:    
+    try:
         with conn.cursor() as cursor:
-            for record in tqdm(records):  
+            for record in tqdm(records):
                 cursor.execute(
                     """
                     INSERT INTO {}flowers (result_id, class, confidence, x0, y0, x1, y1)
@@ -268,10 +258,9 @@ def db_insert_flower_predictions(conn: object, data: pd.DataFrame, db_schema: st
         raise Exception('Could not insert.')
     finally:
         conn.commit()
-    
-    return flower_ids  
 
-@task(name='Insert pollinator predictions into table pollinators')
+    return flower_ids
+
 def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame, db_schema: str = None):
     """Inserts data for pollinator predictions
 
@@ -285,16 +274,16 @@ def db_insert_pollinator_predictions(conn: object, data: pd.DataFrame, db_schema
 
     db_schema: str, optional
         defines the database schema to use, default None
-    """    
+    """
     db_schema = edit_schema(db_schema=db_schema, n=1)
 
     records = data[[
-        'result_id', 'flower_id', 
+        'result_id', 'flower_id',
         'pollinator_names', 'pollinator_scores',
         'x0', 'y0', 'x1', 'y1']].to_records(index=False)
-    try:    
+    try:
         with conn.cursor() as cursor:
-            for record in tqdm(records):  
+            for record in tqdm(records):
                 cursor.execute(
                     """
                     INSERT INTO {}pollinators (result_id, flower_id, class, confidence, x0, y0, x1, y1)

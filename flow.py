@@ -1,18 +1,10 @@
 import json
-import os
 
 import pandas as pd
 import yaml
 
-from prefect import flow
-from prefect.states import Cancelled
-
 from src.pipeline.clients import get_db_client, get_minio_client
-from src.pipeline.extract import (
-    download_files, 
-    get_checkpoint,
-    build_mount_paths
-)
+from src.pipeline.extract import get_checkpoint
 from src.pipeline.load import (
     db_insert_flower_predictions,
     db_insert_image_results,
@@ -25,18 +17,12 @@ from src.pipeline.transform import (
     process_pollinator_predictions,
 )
 
-
-@flow(
-    name="flower_pollinator_pipeline",
-    log_prints=True
-)
 def etl_flow(
     BATCHSIZE=64,
     CONFIG_PATH="source_config.yaml",
     MODEL_CONFIG_PATH="model_config.json",
     IS_TEST=False,
-    MULTI_RESULTS_FOR_IMAGE=False,
-    USE_FS_MOUNT=False
+    MULTI_RESULTS_FOR_IMAGE=False
 ):
     """
     This function represents a flow implemented with prefect. A flow includes multiple smaller prefect task.
@@ -60,9 +46,6 @@ def etl_flow(
         if True allows multiple results per image with equal configuration, else it will through an error
         by default False
 
-    USE_FS_MOUNT : bool, optional
-        if true uses local mounted file system instead of minio bucket to load data, by default False
-
     Returns
     -------
     None
@@ -72,12 +55,14 @@ def etl_flow(
     # Load Configurations and Init clients
     conn = get_db_client(config_path=CONFIG_PATH)
 
-    if not USE_FS_MOUNT:
-        minio_client = get_minio_client(config_path=CONFIG_PATH)
-
     # Load configs
     with open(CONFIG_PATH, "rb") as yaml_file:
         config = yaml.load(yaml_file, yaml.FullLoader)
+
+    storage = {
+        'client': get_minio_client(config_path=CONFIG_PATH),
+        'bucket_name': config["MINIO_BUCKET_NAME"]
+    }
 
     with open(MODEL_CONFIG_PATH, "r") as json_file:
         model_config = json.load(json_file)
@@ -96,36 +81,27 @@ def etl_flow(
 
     # interrupt flow run if there is no new data -> state cancelled
     if df_ckp.shape[0] == 0:
-        return Cancelled()
+        print("No new data to process. Flow run cancelled.")
+        return 1
 
-    if USE_FS_MOUNT:
-        # transforms column object_name to show the exact name of the object 
-        # in the mounted filesystem 
-        df_ckp = build_mount_paths(
-            data=df_ckp,
-            mount_path=config["FS_MOUNT_PATH"],
-        )
-    else:
-        # downloads file from s3
-        download_files(
-            client=minio_client,
-            bucket_name=config["MINIO_BUCKET_NAME"],
-            filenames=df_ckp["object_name"].to_list(),
-            n_threads=8,
-        )
     # -----------------------------------------------
     # Transform and Load
     # -----------------------------------------------
     # Inserts model config if not exists
-    db_insert_model_config(
-        conn=conn, 
-        model_config=model_config,
-        db_schema=config['DB_SCHEMA']
-    )
+    try:
+        db_insert_model_config(
+            conn=conn,
+            model_config=model_config,
+            db_schema=config['DB_SCHEMA']
+        )
+    except Exception as e:
+        print(e)
+        print("Model config already exists in DB.")
 
     flower_predictions, pollinator_predictions = model_predict(
-        data=df_ckp, 
-        cfg=model_config
+        data=df_ckp,
+        cfg=model_config,
+        minio=storage
     )
 
     # Insert image results and get back result_ids
@@ -158,7 +134,7 @@ def etl_flow(
             flower_predictions.to_csv('flower_predictions.csv', index=False)
 
         flower_ids = db_insert_flower_predictions(
-            conn=conn, 
+            conn=conn,
             data=flower_predictions,
             db_schema=config['DB_SCHEMA']
         )
@@ -179,7 +155,7 @@ def etl_flow(
                 pollinator_predictions.to_csv('pollinator_predictions.csv', index=False)
 
             db_insert_pollinator_predictions(
-                conn=conn, 
+                conn=conn,
                 data=pollinator_predictions,
                 db_schema=config['DB_SCHEMA']
             )

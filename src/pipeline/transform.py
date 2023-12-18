@@ -1,21 +1,16 @@
-import os
+import io
 import shutil
-import yaml
 
 import pandas as pd
 from PIL import Image
-import PIL
 from tqdm import tqdm
-
-from prefect import task
 
 if __name__ =='__main__':
     from Pollinatordetection import YoloModel
-else:    
+else:
     from .Pollinatordetection import YoloModel
-    
 
-@task
+
 def dummy_transform(remove_dir):
     shutil.rmtree(path=remove_dir, ignore_errors=True)
 
@@ -81,10 +76,9 @@ def init_models(cfg: dict):
     return flower_model, pollinator_model
 
 
-@task(name='Model inference')
-def model_predict(data: pd.DataFrame, cfg: dict): 
+def model_predict(data: pd.DataFrame, cfg: dict, minio: object):
 
-    flower_model, pollinator_model = init_models(cfg=cfg) 
+    flower_model, pollinator_model = init_models(cfg=cfg)
 
     # Initiate
     flower_predictions, pollinator_predictions = [], []
@@ -99,19 +93,27 @@ def model_predict(data: pd.DataFrame, cfg: dict):
             pollinator_model.reset_inference_times()
             # predict flower
             try:
-                img = Image.open(filename)
+                response = minio['client'].get_object(
+                    minio['bucket_name'], filename, filename
+                )
+                img = Image.open(io.BytesIO(response.read()))
                 original_width, original_height = img.size
             except Exception as e:
                 print(e(f'Not able to load image {filename}'))
                 pbar.update(1)
                 continue
+            finally:
+                response.close()
+                response.release_conn()
             try:
                 flower_model.predict(img)
             except Exception as e:
                 print(e(f'Could not do inference for {filename}'))
                 pbar.update(1)
                 continue
-            
+            finally:
+                img.close()
+
             flower_crops = flower_model.get_crops()
             flower_boxes = flower_model.get_boxes()
             flower_classes = flower_model.get_classes()
@@ -129,9 +131,9 @@ def model_predict(data: pd.DataFrame, cfg: dict):
                     {
                         'object_name': filename,
                         'flower_box_id': flower_index,
-                        'flower_box': flower_boxes[flower_index], 
-                        'flower_class': flower_classes[flower_index], 
-                        'flower_score': flower_scores[flower_index], 
+                        'flower_box': flower_boxes[flower_index],
+                        'flower_class': flower_classes[flower_index],
+                        'flower_score': flower_scores[flower_index],
                         'flower_name': flower_names[flower_index],
                         'width': width,
                         'height': height
@@ -140,7 +142,7 @@ def model_predict(data: pd.DataFrame, cfg: dict):
                 # predict pollinator
                 pollinator_model.predict(flower_crops[flower_index])
 
-                if len(pollinator_model.get_boxes()) > 0: 
+                if len(pollinator_model.get_boxes()) > 0:
                     for i in range(len(pollinator_model.get_boxes())):
                         pollinator_predictions.append(
                             {
@@ -152,15 +154,14 @@ def model_predict(data: pd.DataFrame, cfg: dict):
                                 'pollinator_names' : pollinator_model.get_names()[i],
                             }
                         )
-                        
+
             pbar.update(1)
 
-    return flower_predictions, pollinator_predictions            
+    return flower_predictions, pollinator_predictions
 
-@task(name='Process flower predictions')
 def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFrame, model_config: float) -> pd.DataFrame:
     """
-    Post-processing of flower predictions outputet as json. 
+    Post-processing of flower predictions outputet as json.
 
     Parameters
     ----------
@@ -169,7 +170,7 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
 
     result_ids : pd.DataFrame
         Queried data with existing result_ids
-    
+
     model_config: dict
         Relevant margin which was used to crop the flower for further
         prediction of pollinators (located in model_config.json)
@@ -182,13 +183,13 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
     box_margin = model_config['flower']['margin']
     # Preprocess results from model_predict
     flower_predictions = pd.DataFrame.from_records(flower_predictions)
-    
+
     # Join with DB data
     flower_predictions = pd.merge(
-        left=result_ids, 
-        right=flower_predictions, 
-        left_on='object_name', 
-        right_on='object_name', 
+        left=result_ids,
+        right=flower_predictions,
+        left_on='object_name',
+        right_on='object_name',
         how='right'
     )
     # extract bbox data
@@ -196,12 +197,11 @@ def process_flower_predictions(flower_predictions: dict, result_ids: pd.DataFram
     flower_predictions['y0'] = flower_predictions['flower_box'].apply(lambda x: x[1]).astype(int)
     flower_predictions['x1'] = flower_predictions['flower_box'].apply(lambda x: x[2]).astype(int)
     flower_predictions['y1'] = flower_predictions['flower_box'].apply(lambda x: x[3]).astype(int)
-    
+
     flower_predictions = flower_predictions.drop('flower_box', axis=1)
 
     return flower_predictions
 
-@task(name='Process pollinator predictions')
 def process_pollinator_predictions(pollinator_predictions: dict, flower_predictions: pd.DataFrame, model_config: dict = None) -> pd.DataFrame:
     """
     Processes pollinator predictions. Adds relevant columsn for DB ingestion and transforms the bbox outputs given the
@@ -225,7 +225,7 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
         processed pollinator predictions ready for DB ingestion.
     """
     # get flower margin for the correct offset of the pollinator box
-    # add box margin relative to width/heigth, which ensures the correct bbox for all 
+    # add box margin relative to width/heigth, which ensures the correct bbox for all
     # pollinators as they are relative to the flower bbox + margin
     box_margin = model_config['flower']['margin']
     flower_predictions['x0'] = flower_predictions['x0'] - box_margin
@@ -238,9 +238,9 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
     # Join with DB data
     # Merge with flowers to get size of BB
     pollinator_predictions = pd.merge(
-        left=pollinator_predictions, 
-        right=flower_predictions[['object_name', 'flower_box_id', 'result_id', 'flower_id', 'x0', 'y0', 'x1', 'y1']], 
-        left_on=['object_name', 'flower_box_id'], right_on=['object_name', 'flower_box_id'], 
+        left=pollinator_predictions,
+        right=flower_predictions[['object_name', 'flower_box_id', 'result_id', 'flower_id', 'x0', 'y0', 'x1', 'y1']],
+        left_on=['object_name', 'flower_box_id'], right_on=['object_name', 'flower_box_id'],
         how='inner'
     )
     # rename columns
@@ -267,7 +267,7 @@ def process_pollinator_predictions(pollinator_predictions: dict, flower_predicti
         [
             'p_x0', 'p_x1', 'p_y0', 'p_y1', 'f_x0', 'f_x1', 'f_y0',
             'f_y1', 'pollinator_boxes', 'pollinator_classes'
-        ], 
+        ],
         axis=1
     )
 
